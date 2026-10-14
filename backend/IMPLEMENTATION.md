@@ -1,5 +1,11 @@
 ﻿# Implementation and verification
 
+## Cloudflare Workers deployment setup — 14 October 2026
+
+The operator's dashboard shows Workers Build, Deploy and Preview fields with project name `jpfaral`. Added `frontend/wrangler.jsonc` with that exact name, compatibility date `2026-10-14`, built `dist` assets, a public Workers hostname and SPA fallback. Wrangler 4.151.0 is installed as a locked frontend development dependency. Cloudflare must use root directory `frontend`, build command `npm run build`, deploy command `npx wrangler deploy` and production build variables for the existing Supabase project. The backend remains in Supabase and application code is unchanged.
+
+Updated the deployment guide for this screen and kept an alternative Pages section. Ignored local Wrangler state, development environment files and dry-run output. Generated configuration types into ignored temporary storage. The production build, all 107 frontend unit tests and `wrangler deploy --dry-run` passed; the dry run found 40 built assets and uploaded nothing. A local Workers server returned the app's HTML with HTTP 200 for `/`, `/students`, `/orders`, an order detail URL, `/reports` and `/auth/setup`, and served its JavaScript asset correctly. The local Workers test server was stopped afterward. These checks validate local packaging/routing; the operator must set the dashboard root/build values and verify the actual hosted URL before claiming deployment success.
+
 ## Paid test-order cleanup and selection — 14 October 2026
 
 Verified the linked project has both deletion migrations applied and the live function correctly supports collected confirmation. JP-0001 remains active, Collected, total ₹1,320 and net recorded receipts ₹1,320. The operator confirmed these were test payments only. The remaining payment safeguard caused the deletion block; frontend eligibility filtering also disabled its row/header checkbox and pruned paid selections.

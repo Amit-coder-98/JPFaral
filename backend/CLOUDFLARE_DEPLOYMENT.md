@@ -1,80 +1,66 @@
-# Deploy JPfaral to Cloudflare Pages
+# Deploy JPfaral to Cloudflare
 
-Cloudflare Pages hosts the React/Vite frontend. Supabase continues to provide PostgreSQL, authentication, protected order/payment functions, and the `manage-staff` Edge Function. Use the existing Supabase project and data; deployment does not require another student import or a new database.
+The dashboard screenshots show Cloudflare Workers, with Build, Deploy and Preview command fields. The repository now supports this workflow using frontend/wrangler.jsonc: Cloudflare hosts the React/Vite frontend, and Supabase continues to provide PostgreSQL, authentication, protected order/payment functions and staff management.
 
 Repository: https://github.com/Amit-coder-98/JPFaral
 
-As checked on 14 October 2026, this GitHub repository is empty. The local application currently sits inside a parent Git repository at `F:\Spanda`, so initialize a separate repository inside the application folder before the first push.
+The first application commit is already pushed to the main branch. Do not repeat Git initialization or recreate the database. Local environment files, the source student spreadsheet, private notes and staff setup links remain excluded from Git.
 
-## 1. Build and push the application
+## 1. Configure the screen shown in Cloudflare
 
-Check that `frontend/.env.local` has the real Supabase URL and browser-safe publishable key with `VITE_DATA_MODE=supabase`. Build from the frontend folder:
+Select the repository and set:
 
-```powershell
-cd F:\Spanda\PWE\sweet_sell_management\frontend
-npm run build
-```
-
-Initialize the application repository. These instructions are for the currently empty GitHub repository and the first push:
-
-```powershell
-cd F:\Spanda\PWE\sweet_sell_management
-git init -b main
-git rev-parse --show-toplevel
-```
-
-The printed repository root must be `F:/Spanda/PWE/sweet_sell_management`. Then stage the application source, inspect what is staged, and commit/push:
-
-```powershell
-git remote add origin https://github.com/Amit-coder-98/JPFaral.git
-git add .gitignore frontend backend
-git diff --cached --stat
-git commit -m "Prepare JPfaral for deployment"
-git push -u origin main
-```
-
-Sign in to GitHub through its normal browser/credential-manager prompt if needed. Keep `.env.local`, `imp.txt`, `node_modules`, generated `dist`, `.test-db`, and `backend/supabase/.temp` out of the commit. The project ignore file excludes these. The private staff setup HTML/JSON and invitation links must remain on this computer. Do not stage the parent `F:\Spanda` repository.
-
-## 2. Connect Cloudflare Pages to GitHub
-
-In Cloudflare, open **Workers & Pages → Create application → Pages → Connect to Git** (some screens say **Import an existing Git repository**). Authorize access to **Amit-coder-98/JPFaral**, select it, and choose an available Pages project name, such as `jpfaral`.
-
-Set:
-
-| Setting | Value |
+| Field | Value |
 | --- | --- |
-| Production branch | `main` |
-| Framework preset | React (Vite) |
-| Root directory | `frontend` |
-| Build command | `npm run build` |
-| Build output directory | `dist` |
+| Project name | jpfaral |
+| Build command | npm run build |
+| Deploy command | npx wrangler deploy |
+| Preview command | npx wrangler versions upload |
+| Enable Preview builds | Off for the first production setup |
+| Protect with Cloudflare Access | Off; JPfaral uses its existing Supabase login |
+| Production branch | main |
 
-`dist` is relative to the selected `frontend` root. The repository root intentionally has no `package.json`; do not run the build there. Cloudflare installs frontend dependencies using its package files. Keep `frontend/package-lock.json` in Git.
+Expand **Advanced settings** and set **Root directory** to **frontend**. This is essential: the repository root intentionally has no package.json. Cloudflare must install dependencies and run commands inside frontend, where both package.json and wrangler.jsonc are located.
 
-See [Git integration](https://developers.cloudflare.com/pages/get-started/git-integration/) and [build configuration](https://developers.cloudflare.com/pages/configuration/build-configuration/).
+The Worker name must match the configuration name jpfaral. If you choose another name later, change the configuration name in a reviewed commit too. Existing projects have these settings under **Settings > Build**.
 
-## 3. Set production build variables
+See [Workers build configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/).
 
-Add these in the Pages production environment before the first build:
+## 2. Add build variables before deploying
+
+Under **Advanced settings > Build variables/secrets**, add:
 
 | Variable | Value |
 | --- | --- |
-| `NODE_VERSION` | `24.13.0` (the locally validated Node version) |
-| `VITE_DATA_MODE` | `supabase` |
-| `VITE_SUPABASE_URL` | The same project URL as `frontend/.env.local` |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | The same publishable key as `frontend/.env.local` |
+| NODE_VERSION | 24.13.0 |
+| VITE_DATA_MODE | supabase |
+| VITE_SUPABASE_URL | Copy the existing value from frontend/.env.local |
+| VITE_SUPABASE_PUBLISHABLE_KEY | Copy the existing publishable key from frontend/.env.local |
 
-The `.env.local` file is intentionally not pushed; Cloudflare needs these values configured separately. Vite embeds the browser configuration during the build, so variable changes require a new deployment. Never use a service-role or server secret key as a `VITE_` variable.
+These are **build** values, because Vite embeds browser configuration during the build. Adding them only as Worker runtime variables will not configure the frontend. Changes require a new build. Use a browser-safe publishable key and keep server secret/service-role keys out of Vite variables.
 
-Only configure preview environments against an intended test project. The staff function currently permits one frontend origin, so a different preview hostname will not be allowed to manage staff.
+Wrangler is a locked frontend development dependency so Cloudflare uses the project's validated CLI version. The Vite app and its UI remain unchanged. Configure preview environments separately if preview builds are enabled later; the current staff function permits one frontend origin.
 
-See [build variables](https://developers.cloudflare.com/pages/configuration/build-configuration/#environment-variables) and [Node version selection](https://developers.cloudflare.com/pages/configuration/build-image/).
+See [build variables](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/#build-variables-and-secrets).
 
-## 4. Deploy and record the assigned HTTPS URL
+## 3. Validate locally and deploy
 
-Select **Save and Deploy**. Wait for a successful build and deployment, then copy the permanent production address shown by Cloudflare, for example `https://YOUR_PROJECT.pages.dev`. The exact hostname depends on project-name availability.
+For future changes, run from frontend:
 
-The existing app has no top-level `404.html`; Pages' default SPA fallback serves the app for routes such as `/students`, `/orders/UUID`, and `/auth/setup`. See [SPA serving](https://developers.cloudflare.com/pages/configuration/serving-pages/#single-page-application-spa-rendering).
+~~~powershell
+cd F:\Spanda\PWE\sweet_sell_management\frontend
+npm test
+npm run build
+npx wrangler deploy --dry-run
+~~~
+
+The dry run validates the asset deployment configuration without uploading it. Cloudflare's Git build performs the actual deployment after you select **Deploy** or retry a failed deployment with corrected settings. The old ENOENT at /opt/buildhome/repo/package.json means Root directory was not frontend.
+
+The configuration serves only built dist assets. It uses **single-page-application** routing so /students, /orders/UUID and /auth/setup can be opened or refreshed directly. No custom Worker script or duplicate backend is needed. See [SPA routing](https://developers.cloudflare.com/workers/static-assets/routing/single-page-application/).
+
+## 4. Record the permanent HTTPS address
+
+After deployment succeeds, copy the assigned production address, normally https://jpfaral.YOUR_ACCOUNT.workers.dev. Use the actual address shown by Cloudflare; YOUR_ACCOUNT is an example placeholder. The earlier pages.dev examples apply only to Cloudflare Pages projects.
 
 ## 5. Update Supabase Auth and the staff function
 
@@ -83,7 +69,7 @@ In the existing Supabase project, open **Authentication → URL Configuration**:
 - **Site URL:** the exact permanent Cloudflare HTTPS origin, without an application path.
 - **Redirect URLs:** add that origin followed by `/auth/setup`.
 
-For example, if the actual address is `https://jpfaral.pages.dev`, the redirect is `https://jpfaral.pages.dev/auth/setup`. Use the assigned URL, not an example that belongs to another account. Do not use broad wildcard production redirects. Existing local redirects may remain for continued local testing.
+For example, if the actual address is `https://jpfaral.YOUR_ACCOUNT.workers.dev`, the redirect is `https://jpfaral.YOUR_ACCOUNT.workers.dev/auth/setup`. Use the assigned URL, not an example that belongs to another account. Do not use broad wildcard production redirects. Existing local redirects may remain for continued local testing.
 
 Edit the existing ignored `backend/supabase/functions/.env.local` to set `APP_ORIGIN` to the exact permanent HTTPS origin, without a trailing slash. If this file does not exist, copy `.env.example` and replace its local origin first:
 
@@ -124,4 +110,8 @@ npm run supabase -- db push --linked --dry-run
 
 The operator reported completing the latest cleanup migration. If the dry run lists other pending migrations, review them and the linked project before applying anything. Frontend deployments do not apply database migrations automatically.
 
-Future pushes to the production `main` branch trigger new Pages builds. Deploy new Supabase migrations/functions separately when a release changes them. Changing the production hostname requires updating Supabase Auth redirects and `APP_ORIGIN` again.
+Future pushes to the production `main` branch trigger new Workers builds. Deploy new Supabase migrations/functions separately when a release changes them. Changing the production hostname requires updating Supabase Auth redirects and `APP_ORIGIN` again.
+
+## Alternative: an existing Pages project
+
+For a Cloudflare Pages project, select production branch `main`, root directory `frontend`, build command `npm run build`, and build output directory `dist`. Use the same build variables. Pages hosts the generated assets directly and does not use the Workers Deploy/Preview command fields. Its permanent hostname ends in `.pages.dev`; use that actual hostname for Auth redirects and `APP_ORIGIN`. The current screenshots show Workers, so follow sections 1–7 above for that project.

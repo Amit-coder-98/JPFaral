@@ -116,7 +116,7 @@ For future users, open **Staff Management → Add staff member**, enter the full
 
 ## Verification and deployment
 
-For this project's GitHub repository and Cloudflare Pages setup, follow the [complete Cloudflare deployment steps](../backend/CLOUDFLARE_DEPLOYMENT.md). They include the first safe Git push, frontend build settings, production variables, Supabase Auth redirects, and staff-function configuration.
+For the Cloudflare Workers setup shown in the dashboard, follow the [complete Cloudflare deployment steps](../backend/CLOUDFLARE_DEPLOYMENT.md). `wrangler.jsonc` deploys `dist` as static assets with an `index.html` fallback for application routes. Supabase remains the database/Auth/backend. The guide covers the exact dashboard commands, production build variables, Auth redirects, and staff-function configuration, with Pages settings for projects that use Pages.
 
 ```powershell
 npm test
