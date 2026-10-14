@@ -15,6 +15,9 @@ import {
 import { orderSchema } from "../../src/services/validation";
 import { divisions } from "../../src/data/reference";
 
+// The real school directory stays private and is available only for local audits.
+const actualReport = new URL("../../../DynamicReport.xls", import.meta.url);
+
 const report = (rows: unknown[][]) => {
   const workbook = xlsx.utils.book_new();
   xlsx.utils.book_append_sheet(
@@ -170,10 +173,8 @@ describe("student report parsing", () => {
     );
     expect(() => parseStudentSheet(source, "Missing")).toThrow("worksheet");
   });
-  it("reads the unchanged actual XLS fixture as 521 data rows with headers at row 4", () => {
-    const bytes = fs.readFileSync(
-      new URL("../../../DynamicReport.xls", import.meta.url),
-    );
+  it.skipIf(!fs.existsSync(actualReport))("reads the unchanged actual XLS fixture as 521 data rows with headers at row 4", () => {
+    const bytes = fs.readFileSync(actualReport);
     const source = readStudentWorkbook(
       bytes.buffer.slice(
         bytes.byteOffset,

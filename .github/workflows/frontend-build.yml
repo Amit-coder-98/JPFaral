@@ -1,0 +1,51 @@
+name: Cloudflare frontend build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - frontend/**
+      - .github/workflows/frontend-build.yml
+  pull_request:
+    paths:
+      - frontend/**
+      - .github/workflows/frontend-build.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      # Public fixture values for compilation only; this workflow never deploys.
+      VITE_DATA_MODE: supabase
+      VITE_SUPABASE_URL: https://fixture.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_test
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24.18.0'
+          package-manager-cache: false
+      - name: Match the reported Cloudflare npm version
+        run: npm install --global npm@10.9.2 --no-audit --no-fund
+      - name: Clean install
+        run: npm ci --no-audit --no-fund
+      - name: Frontend unit tests
+        run: npm test
+      - name: Production build
+        run: npm run build
+      - name: Validate Worker deployment without uploading
+        run: npx wrangler deploy --dry-run

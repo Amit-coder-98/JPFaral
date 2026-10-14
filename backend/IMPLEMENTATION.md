@@ -1,5 +1,13 @@
 ﻿# Implementation and verification
 
+## Cloudflare clean-install lockfile repair — 14 October 2026
+
+The hosted build correctly selected the frontend folder, then failed during `npm clean-install` because the prior Windows-generated lock omitted `@emnapi/runtime` and bundled WASM `@emnapi/core` metadata. Reproduced the exact missing-dependency error using the reported Cloudflare npm 10.9.2 with a Linux target. Regenerated the lock in an isolated folder without existing dependencies using npm 10.9.2. Existing application dependency versions are unchanged; the repaired lock records the root runtime and the bundled core/runtime entries.
+
+The Linux-target install validation and a fresh native Windows `npm ci` passed. Tests passed in the original workspace (107) and clean source copy (106, with one explicit skip for the privately retained original student report). The clean source copy's production build passed. The real XLS audit remains mandatory whenever its local fixture is present; synthetic imports and all other business tests run everywhere. No real students or environment credentials were copied to the clean source directory or committed.
+
+Added a read-only, pinned GitHub Actions Linux build workflow matching reported Node 24.18.0/npm 10.9.2. It performs `npm ci`, unit tests, production compilation and a Wrangler dry run, using public fixture values and no deployment credentials. Hosted verification must be checked on the exact pushed commit; local platform-target validation alone does not establish a successful Cloudflare deployment.
+
 ## Cloudflare Workers deployment setup — 14 October 2026
 
 The operator's dashboard shows Workers Build, Deploy and Preview fields with project name `jpfaral`. Added `frontend/wrangler.jsonc` with that exact name, compatibility date `2026-10-14`, built `dist` assets, a public Workers hostname and SPA fallback. Wrangler 4.151.0 is installed as a locked frontend development dependency. Cloudflare must use root directory `frontend`, build command `npm run build`, deploy command `npx wrangler deploy` and production build variables for the existing Supabase project. The backend remains in Supabase and application code is unchanged.

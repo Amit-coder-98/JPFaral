@@ -54,6 +54,10 @@ npm run build
 npx wrangler deploy --dry-run
 ~~~
 
+The GitHub **Cloudflare frontend build** check runs a clean install, unit tests, build and Wrangler dry run on Linux with the Node/npm versions reported by Cloudflare (`24.18.0`/`10.9.2`). It uses public fixture configuration and never deploys or accesses the live database. The one test that audits the private original `DynamicReport.xls` runs locally when that file is present and is explicitly skipped on CI; synthetic import/business tests still run.
+
+If Cloudflare reports `npm ci` missing dependencies, regenerate the lockfile in a folder without existing `node_modules` using the same npm version, retain current application versions, and check a clean install before pushing. The repaired lock includes the optional native/WASM package metadata omitted during the prior Windows install. Keep `npm ci` enabled so future inconsistent lockfiles fail before deployment.
+
 The dry run validates the asset deployment configuration without uploading it. Cloudflare's Git build performs the actual deployment after you select **Deploy** or retry a failed deployment with corrected settings. The old ENOENT at /opt/buildhome/repo/package.json means Root directory was not frontend.
 
 The configuration serves only built dist assets. It uses **single-page-application** routing so /students, /orders/UUID and /auth/setup can be opened or refreshed directly. No custom Worker script or duplicate backend is needed. See [SPA routing](https://developers.cloudflare.com/workers/static-assets/routing/single-page-application/).
