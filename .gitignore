@@ -1,0 +1,16 @@
+node_modules/
+.vite/
+dist/
+test-results/
+playwright-report/
+*.tsbuildinfo
+.env*
+!.env.example
+.supabase/
+.temp/
+.test-db/
+coverage/
+# Local notes may contain private account/setup information.
+imp.txt
+# Original school report contains student personal data.
+DynamicReport.xls
