@@ -2,6 +2,8 @@
 
 ## Reusable customer receipt numbers — 16 October 2026
 
+Release follow-up: the operator applied `202610160002_reusable_receipt_numbers.sql`. A read-only linked migration-history query confirms all nine versions have matching remote entries. The tested frontend is prepared in commit `3dcb977` for publication through the connected GitHub/Cloudflare build. The implementation-time pending status below records the state before the operator applied the migration.
+
 The operator clarified that deleted receipt numbers must become available again, superseding the earlier permanent printed-number choice. New forward-only `202610160002_reusable_receipt_numbers.sql` adds a nullable customer `receipt_number`, a unique active-receipt index and transaction-locked allocation of the lowest free positive slot. Legacy receipts retain their NULL fallback; all existing rows, UUIDs, internal `order_number` references, payments and audit records remain unchanged. Saved numbers and internal references are immutable. Existing deletion safeguards/grants are retained byte-for-byte apart from public receipt labels in validation errors.
 
 The frontend and mock adapter display the reusable customer receipt consistently, keep permanent internal references separate, and associate audit/history links with stable UUIDs. Payment and order exports include order record IDs; deleted ledger rows retain clear archive labels. Deleting the last active receipt frees it, middle gaps can be reused without collisions, and an empty active list starts at JP-0001. Failed saves/deletions and retries do not reserve duplicate customer numbers. No current receipt is renumbered or order automatically deleted.

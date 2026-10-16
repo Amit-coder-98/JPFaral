@@ -16,7 +16,7 @@ The full browser run covered 45 workflows. Two checks required isolated reruns: 
 
 ## Review and apply
 
-All eight earlier migrations are applied to the linked project. The new forward-only file is `supabase/migrations/202610160002_reusable_receipt_numbers.sql`. A linked dry run lists only this file. It has not been applied automatically. Previously applied migrations are unchanged.
+The operator applied `supabase/migrations/202610160002_reusable_receipt_numbers.sql` on 16 October 2026. A subsequent read-only linked migration-history check confirms all nine migrations are applied. No production migration was applied automatically by the implementation. Previously applied migrations are unchanged. The following commands are retained for another environment where the migration is pending.
 
 Review the SQL, then preview:
 

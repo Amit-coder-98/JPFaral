@@ -2,7 +2,7 @@
 
 For the 16 October checkbox catalogue, collection payments, class summaries and student leaderboard, follow [the coordinated database/frontend release instructions](../backend/ORDER_WORKFLOW_UPDATE.md).
 
-For the later request to reuse deleted receipt numbers, follow [the additional migration and release instructions](../backend/RECEIPT_NUMBERING.md). Apply `202610160002_reusable_receipt_numbers.sql` before publishing this matching frontend.
+For the later request to reuse deleted receipt numbers, follow [the additional migration and release instructions](../backend/RECEIPT_NUMBERING.md). The operator applied `202610160002_reusable_receipt_numbers.sql`; all nine migrations are verified applied to the linked project. Other environments must apply it before publishing this matching frontend.
 
 The approved React/Vite UI uses Supabase Auth and a persistent PostgreSQL repository. Students, orders and payments start empty in a new project. Migrations initialize the twelve divisions, organization defaults, and the 26 approved Marathi products. The current linked project has 521 reviewed students; see the [student audit](../backend/STUDENT_DATA_AUDIT.md). `../DynamicReport.xls` is preserved.
 

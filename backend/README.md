@@ -1,6 +1,6 @@
 # JPfaral Supabase backend
 
-**16 October 2026 update:** checkbox products, kg quantities, collection checkout and student standings were released. All eight migrations through `202610160001_collection_checkout.sql` are verified applied. The later requested [reuse of deleted receipt numbers](RECEIPT_NUMBERING.md) adds `202610160002_reusable_receipt_numbers.sql`, which is pending review/application. Its matching frontend must be released afterward.
+**16 October 2026 update:** checkbox products, kg quantities, collection checkout and student standings were released. The operator also applied `202610160002_reusable_receipt_numbers.sql`; a read-only linked migration-history check confirms all nine migrations are applied. See [reuse of deleted receipt numbers](RECEIPT_NUMBERING.md) for the numbering rule and frontend release verification.
 
 The backend is PostgreSQL migrations, protected database functions, RLS policies, and a Supabase Edge Function. There is no separate Express server. The frontend and backend have independent packages; run npm commands inside the corresponding folder.
 
