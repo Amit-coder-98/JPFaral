@@ -26,7 +26,7 @@ export function OrderTable({
   const staff = (id: string) =>
     data.staff.find((s) => s.id === id)?.name ?? "—";
   const columns: Column<Order>[] = [
-    ...(!compact ? [{ key: "serial", label: "No.", value: (order: Order) => serials.get(order.id) ?? 0,
+    ...(!compact ? [{ key: "serial", label: "List no.", value: (order: Order) => serials.get(order.id) ?? 0,
       render: (order: Order) => serials.get(order.id) ?? "—" }] : []),
     {
       key: "number",

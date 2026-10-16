@@ -27,6 +27,7 @@ export function Bill({ order }: { order: Order }) {
         </div>
         <div>
           <span className="eyebrow">DIWALI FARAL · 2026</span>
+          <span className="bill-receipt-label">Receipt no.</span>
           <h2>{order.number}</h2>
           <Badge tone={order.deletedAt ? "inactive" : undefined}>{order.deletedAt ? "Deleted" : order.status}</Badge>
           <p>Order date: {date(order.createdAt, true)}</p>

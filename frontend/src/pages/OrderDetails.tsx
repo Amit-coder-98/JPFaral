@@ -37,9 +37,9 @@ export default function OrderDetails() {
   return (
     <>
       <PageHeader
-        eyebrow="ORDER DETAILS"
+        eyebrow="RECEIPT DETAILS"
         title={order.number}
-        description={`A celebration for ${order.customerName || "your customer"}.`}
+        description={`Receipt for ${order.customerName || "your customer"}.`}
         actions={
           <>
             <Link to="/orders" className="button secondary">

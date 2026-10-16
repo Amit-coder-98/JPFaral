@@ -33,7 +33,7 @@ test("single delete requires a reason and confirmation, preserves history and pr
   await page.getByRole("button",{name:"Confirm delete",exact:true}).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByText("No results found",{exact:true})).toBeVisible();
-  await expect(page.locator(".summary-pills")).toContainText("0 orders");
+  await expect(page.locator(".summary-pills")).toContainText("0 active orders");
   await page.getByRole("link",{name:"Activity & Audit Logs",exact:true}).click();
   await page.getByLabel("Filter activity action").selectOption("Deleted");
   await page.getByRole("link",{name:order.number,exact:true}).click();
@@ -77,7 +77,31 @@ test("bulk selections persist across pages, clear on filtering, and remove only 
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByText("No results found",{exact:true})).toBeVisible();
   await page.getByRole("button",{name:"Clear",exact:true}).click();
-  await expect(page.locator(".summary-pills")).toContainText("86 orders");
+  await expect(page.locator(".summary-pills")).toContainText("86 active orders");
+});
+
+test("deleted orders leave active list counts while the next receipt keeps its unique number", async ({ page }) => {
+  const first = await create(page, "Numbering regression temporary");
+  await page.getByRole("link", { name: "Orders", exact: true }).click();
+  await page.getByLabel("Search orders", { exact: true }).fill("Numbering regression");
+  await page.getByRole("button", { name: `Delete ${first.number}`, exact: true }).click();
+  await page.getByLabel("Reason for deletion", { exact: false }).fill("Temporary numbering check");
+  await page.getByRole("button", { name: "Confirm delete", exact: true }).click();
+  await expect(page.locator(".summary-pills")).toContainText("0 active orders");
+
+  const next = await create(page, "Numbering regression live");
+  expect(Number(next.number.slice(3))).toBeGreaterThan(Number(first.number.slice(3)));
+  await expect(page.locator(".bill-receipt-label")).toHaveText("Receipt no.");
+  await expect(page.locator(".bill h2")).toHaveText(next.number);
+  await page.getByRole("link", { name: "Orders", exact: true }).click();
+  await page.getByLabel("Search orders", { exact: true }).fill("Numbering regression");
+  await expect(page.locator(".summary-pills")).toContainText("1 active order in this view");
+  await expect(page.locator("tbody tr")).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "List no.", exact: false })).toBeVisible();
+  await expect(page.locator("tbody tr td").nth(1)).toHaveText("1");
+  await expect(page.locator("tbody .order-link")).toHaveText(next.number);
+  await expect(page.locator(".order-numbering-note")).toContainText("Receipt numbers stay unique");
+  await expect(page.locator(".pagination")).toContainText("Showing 1–1 of 1");
 });
 
 test("paid orders explain the refund requirement and keep their ledger after deletion", async ({ page }) => {

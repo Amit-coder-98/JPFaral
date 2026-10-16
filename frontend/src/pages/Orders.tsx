@@ -45,6 +45,7 @@ export default function Orders() {
   const rows = useMemo(
     () =>
       data.orders.filter((o) => {
+        if (o.deletedAt) return false;
         const s =
           o.studentSnapshot ?? data.students.find((s) => s.id === o.studentId);
         return (
@@ -173,7 +174,7 @@ export default function Orders() {
       />
       <div className="summary-pills">
         <span>
-          <strong>{rows.length}</strong> orders in this view
+          <strong>{rows.length}</strong> {rows.length === 1 ? "active order" : "active orders"} in this view
         </span>
         <span>
           Total value{" "}
@@ -196,6 +197,7 @@ export default function Orders() {
           </strong>
         </span>
       </div>
+      <p className="order-numbering-note">Deleted orders are excluded from counts. Receipt numbers stay unique and may have gaps.</p>
       <Panel>
         <div className="table-toolbar">
           <SearchInput

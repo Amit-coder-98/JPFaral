@@ -1,5 +1,11 @@
 ﻿# Implementation and verification
 
+## Active order counts and receipt labels — 16 October 2026
+
+The reported screenshot already shows one active order and list position 1; JP-0008 is the permanent receipt ID. Database code uses a unique sequence across active and archived receipts, while the service separates archived records from active orders. Preserve the operator's confirmed rule to keep printed receipts unique. Clarified the table heading as **List no.**, the active count with singular/plural wording, receipt labels on bills/order entry, and the receipt detail heading. The Orders screen explains the difference and defensively excludes archived rows before filtering, totals and exports.
+
+Verification: 119 frontend unit tests, seven affected browser checks and the production build passed. The added browser regression deletes a test order, confirms a zero filtered count, saves another order with a higher unique receipt, and verifies active count/list position 1 and the unchanged receipt on its bill. Existing bulk deletion, sorting/exports, mobile/tablet print and 320/390px layouts pass. This frontend change needs no additional database migration and does not renumber historical receipts.
+
 ## Product checklist, collection checkout and school standings — 16 October 2026
 
 Release follow-up: the operator applied the checkout migration. A subsequent read-only `supabase migration list --linked` confirms all eight local versions, including `202610160001`, have matching remote versions. Preparing the tested source update for GitHub publication; frontend deployment and hosted behavior require separate verification.

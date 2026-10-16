@@ -472,7 +472,7 @@ const [division, setDivision] = useState(selectedInitial?.division ?? "");
           >
             <div className="order-number-strip">
               <FileText size={16} />
-              <span>Bill / order number</span>
+              <span>Receipt no.</span>
               <strong>{billNumber}</strong>
               <span className="muted">
                 {isMock

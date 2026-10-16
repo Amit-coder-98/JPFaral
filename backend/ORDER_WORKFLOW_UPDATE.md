@@ -8,7 +8,7 @@ Orders now follow Draft → Confirmed → Collected. Open a confirmed order and 
 
 Dashboard graphs are replaced by school-wide class/division totals and student sales standings. Counts include directory students, distinct participating students, confirmed orders, outstanding collections, collected orders, drafts, sales, payments received and outstanding money. Gifts are ranked by total non-draft, non-deleted sales value, as confirmed by the operator. Equal sales share a rank. Class summaries and rankings can be exported as CSV. Current directory divisions are used after student assignment repairs; historical order snapshots remain unchanged.
 
-The Orders table has a separate **No.** for active list numbering. If test orders 1 and 2 are deleted, the only remaining order has active number 1. Its permanent printed receipt can remain JP-0003. This distinction was confirmed by the operator; archived receipts are never renumbered or reused.
+The Orders table has a separate **List no.** for active numbering within the current view. If test orders 1 and 2 are deleted, the only remaining order has active number 1. Its permanent **Receipt no.** can remain JP-0003. This distinction was confirmed by the operator; archived receipts are never renumbered or reused. The list explicitly labels active order counts and explains that receipt IDs may have gaps. Bills label the receipt number rather than presenting it as an order count.
 
 ## Review and release
 
