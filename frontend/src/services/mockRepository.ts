@@ -12,7 +12,7 @@ import type {
   PaymentInput,
   CollectionInput,
 } from "../types";
-import { balance, nextOrderNumber, orderTotal } from "../utils/calculations";
+import { balance, nextOrderNumber, nextReceiptNumber, orderTotal } from "../utils/calculations";
 import { now } from "../utils/format";
 import { moneyInPaise, rateMoney } from "../utils/pricing";
 import { orderSchema, quantitySchema } from "./validation";
@@ -124,6 +124,7 @@ export class MockRepository implements FrontendRepository {
           action,
           recordType,
           recordId,
+          ...(["Order", "Payment"].includes(recordType) ? { orderId: [...state.orders, ...(state.deletedOrders ?? [])].find(order => order.number === recordId)?.id } : {}),
           timestamp: now(),
           summary,
           changes,
@@ -158,7 +159,8 @@ export class MockRepository implements FrontendRepository {
       ...clean,
       utr: clean.paymentMethod === "Cash" ? "" : clean.utr.trim(),
       id: previous?.id ?? crypto.randomUUID(),
-      number: previous?.number ?? nextOrderNumber([...this.state.orders, ...(this.state.deletedOrders ?? [])]),
+      number: previous?.number ?? nextReceiptNumber(this.state.orders),
+      reference: previous ? previous.reference ?? previous.number : nextOrderNumber([...this.state.orders, ...(this.state.deletedOrders ?? [])]),
       version: previous ? (previous.version ?? 1) + 1 : 1,
       status,
       createdBy: previous?.createdBy ?? actor,

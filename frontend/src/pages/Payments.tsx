@@ -93,6 +93,7 @@ export default function Payments() {
                     "UTR",
                     "Received by",
                     "Date",
+                    "Order record ID",
                   ],
                   rows.map((p) => {
                     const o = allOrders.find((o) => o.id === p.orderId);
@@ -101,11 +102,12 @@ export default function Payments() {
                       o?.customerName ?? "",
                       paymentAmount(p),
                       p.kind ?? "receipt",
-                      testHistory ? "Deleted test order" : "Live ledger",
+                      testHistory ? "Deleted test order" : o?.deletedAt ? "Deleted order" : "Live ledger",
                       p.method,
                       p.utr,
                       data.staff.find((s) => s.id === p.receivedBy)?.name ?? "",
                       p.date,
+                      p.orderId,
                     ];
                   }),
                 )
@@ -192,12 +194,12 @@ export default function Payments() {
           columns={[
             {
               key: "order",
-              label: "Order number",
+              label: "Receipt no.",
               render: (p) => {
                 const o = allOrders.find((o) => o.id === p.orderId);
                 return (
                   <Link className="order-link" to={`/orders/${p.orderId}`}>
-                    {o?.number}{o?.deletionTestData ? " · Test" : ""}
+                    {o?.number}{o?.deletionTestData ? " · Test" : o?.deletedAt ? " · Deleted" : ""}
                   </Link>
                 );
               },

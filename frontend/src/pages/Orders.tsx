@@ -103,6 +103,7 @@ export default function Orders() {
     "Created by",
     "Last edited by",
     "Order items: दर पाव किलो (250 ग्रॅम); प्रमाण kg; किंमत रुपये",
+    "Order record ID",
   ];
   const exportRows = rows.map((o) => {
     const s =
@@ -131,6 +132,7 @@ export default function Orders() {
             `${item.name} | ${rateMoney(item.price)} / 250 ग्रॅम | ${item.quantity} kg | ${money(lineTotal(item))}`,
         )
         .join("; "),
+      o.id,
     ];
   });
   const exportCSV = () =>
@@ -197,7 +199,7 @@ export default function Orders() {
           </strong>
         </span>
       </div>
-      <p className="order-numbering-note">Deleted orders are excluded from counts. Receipt numbers stay unique and may have gaps.</p>
+      <p className="order-numbering-note">Deleted orders are excluded from counts. Their receipt numbers become available for new orders.</p>
       <Panel>
         <div className="table-toolbar">
           <SearchInput

@@ -35,7 +35,10 @@ describe("reviewed order deletion", () => {
     expect(metrics(state.orders, state.payments)).toMatchObject({ count: 0, sales: 0, pending: 0 });
     expect(state.deletedOrders![0]).toMatchObject({ id: before.id, number: before.number, items: before.items, deletedBy: "u1" });
     expect(state.logs[0]).toMatchObject({ action: "Deleted", recordId: before.number, userId: "u1" });
-    expect(repo.saveOrder(input(), "u1").number).not.toBe(order.number);
+    const next=repo.saveOrder(input(), "u1");
+    expect(next.number).toBe(order.number);
+    expect(next.reference).not.toBe(order.reference);
+    expect(next.id).not.toBe(order.id);
     expect(() => repo.saveOrder(input(), "u1", "Confirmed", order.id)).toThrow("Deleted");
   });
   it("requires an active Super Admin even for a staff-owned draft", () => {

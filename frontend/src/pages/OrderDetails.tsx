@@ -31,7 +31,7 @@ export default function OrderDetails() {
         }
       />
     );
-  const logs = data.logs.filter((l) => l.recordId === order.number);
+  const logs = data.logs.filter((l) => l.orderId ? l.orderId === order.id : l.recordId === (order.reference ?? order.number));
   const name = (id: string) => data.staff.find((s) => s.id === id)?.name ?? "—";
   const receipts = data.payments.filter(payment => payment.orderId === order.id).sort((a,b) => a.date.localeCompare(b.date));
   return (

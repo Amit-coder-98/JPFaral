@@ -54,12 +54,28 @@ describe("payment at collection",()=>{
     expect(()=>repo.collectOrder({orderId:order.id,version:1,amount:90,method:"Cash",utr:"",requestId:crypto.randomUUID()},"u1")).toThrow("deleted");
   });
   it("continues to display legacy Ready snapshots as Confirmed",()=>{ expect(orderStatusLabel("Ready")).toBe("Confirmed"); });
-  it("starts active list numbers at one after deleting test orders while printed receipt IDs remain unique",()=>{
+  it("starts receipt and list numbers at one after deleting all active test orders without reusing internal references",()=>{
     const repo=repository(), first=repo.saveOrder(form(0),"u1"), second=repo.saveOrder(form(0),"u1");
     repo.deleteOrders({orders:[first,second].map(order=>({id:order.id,version:order.version!})),reason:"Delete test entries",requestId:crypto.randomUUID()},"u1");
     const next=repo.saveOrder(form(0),"u1");
-    expect(next.number).toBe("JP-0003");
+    expect(next.number).toBe("JP-0001");
+    expect(next.reference).toBe("JP-0003");
+    expect(next.id).not.toBe(first.id);
+    expect(repo.getSnapshot().deletedOrders!.map(order => order.number)).toEqual(["JP-0001", "JP-0002"]);
     expect(activeOrderSerials([...repo.getSnapshot().orders,...repo.getSnapshot().deletedOrders!]).get(next.id)).toBe(1);
     expect(activeOrderSerials(repo.getSnapshot().orders).size).toBe(1);
+  });
+  it("reuses a freed middle receipt number without changing other active receipts or their payment/audit identity",()=>{
+    const repo=repository(), first=repo.saveOrder(form(10),"u1"), middle=repo.saveOrder(form(0),"u1"), last=repo.saveOrder(form(0),"u1");
+    repo.deleteOrders({orders:[{id:middle.id,version:middle.version!}],reason:"Duplicate test entry",requestId:crypto.randomUUID()},"u1");
+    const next=repo.saveOrder(form(20),"u1");
+    expect(next.number).toBe(middle.number); expect(next.reference).toBe("JP-0004");
+    expect(new Set(repo.getSnapshot().orders.map(order=>order.number)).size).toBe(3);
+    expect(repo.getSnapshot().orders.find(order=>order.id===first.id)?.number).toBe(first.number);
+    expect(repo.getSnapshot().orders.find(order=>order.id===last.id)?.number).toBe(last.number);
+    expect(repo.getSnapshot().payments.filter(payment=>payment.orderId===first.id)[0].amount).toBe(10);
+    expect(repo.getSnapshot().payments.filter(payment=>payment.orderId===next.id)[0].amount).toBe(20);
+    expect(repo.getSnapshot().logs.filter(log=>log.orderId===next.id).every(log=>log.recordId===next.number)).toBe(true);
+    expect(repo.getSnapshot().logs.find(log=>log.action==="Deleted"&&log.orderId===middle.id)).toBeTruthy();
   });
 });

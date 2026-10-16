@@ -1,5 +1,15 @@
 ﻿# Implementation and verification
 
+## Reusable customer receipt numbers — 16 October 2026
+
+The operator clarified that deleted receipt numbers must become available again, superseding the earlier permanent printed-number choice. New forward-only `202610160002_reusable_receipt_numbers.sql` adds a nullable customer `receipt_number`, a unique active-receipt index and transaction-locked allocation of the lowest free positive slot. Legacy receipts retain their NULL fallback; all existing rows, UUIDs, internal `order_number` references, payments and audit records remain unchanged. Saved numbers and internal references are immutable. Existing deletion safeguards/grants are retained byte-for-byte apart from public receipt labels in validation errors.
+
+The frontend and mock adapter display the reusable customer receipt consistently, keep permanent internal references separate, and associate audit/history links with stable UUIDs. Payment and order exports include order record IDs; deleted ledger rows retain clear archive labels. Deleting the last active receipt frees it, middle gaps can be reused without collisions, and an empty active list starts at JP-0001. Failed saves/deletions and retries do not reserve duplicate customer numbers. No current receipt is renumbered or order automatically deleted.
+
+Verification passed: **72 backend tests, 121 frontend unit tests, eight simulated Supabase browser checks and the production build**. Of 45 browser scenarios, 43 passed in the broad run; the new fixture test was corrected to retain in-memory state through SPA navigation, and a concurrent test-artifact collision affected one pagination teardown. Both affected scenarios passed in a subsequent isolated run. New SQL cases cover concurrent creation/deletion, archive and ledger separation, failed-save rollback, draft confirmation, idempotent retries, immutable references, roles, legacy upgrades and migration replay. A linked dry run lists only the new receipt migration; all eight previously applied migrations remain unchanged.
+
+This receipt-reuse migration has **not been applied**, and its matching frontend has **not been pushed or deployed**. Only the preceding label clarification was pushed as `616351b`; this later policy change requires the additional migration before publication. Follow [RECEIPT_NUMBERING.md](RECEIPT_NUMBERING.md) for the exact review/application commands. No production business records were changed by the implementation.
+
 ## Active order counts and receipt labels — 16 October 2026
 
 The reported screenshot already shows one active order and list position 1; JP-0008 is the permanent receipt ID. Database code uses a unique sequence across active and archived receipts, while the service separates archived records from active orders. Preserve the operator's confirmed rule to keep printed receipts unique. Clarified the table heading as **List no.**, the active count with singular/plural wording, receipt labels on bills/order entry, and the receipt detail heading. The Orders screen explains the difference and defensively excludes archived rows before filtering, totals and exports.

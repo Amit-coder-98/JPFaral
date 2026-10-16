@@ -172,7 +172,7 @@ export default function Activity({ personal = false }: { personal?: boolean }) {
               key: "record",
               label: "Record",
               render: (l) => {
-                const order = [...data.orders, ...(data.deletedOrders ?? [])].find((o) => o.number === l.recordId);
+                const order = [...data.orders, ...(data.deletedOrders ?? [])].find((o) => l.orderId ? o.id === l.orderId : (o.reference ?? o.number) === l.recordId);
                 return (
                   <div className="cell-stack">
                     <strong>

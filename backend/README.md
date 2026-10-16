@@ -1,6 +1,6 @@
 # JPfaral Supabase backend
 
-**16 October 2026 update:** see [checkbox products, kg quantities, collection checkout, division totals and student standings](ORDER_WORKFLOW_UPDATE.md) for the release sequence. The operator applied `202610160001_collection_checkout.sql`; a read-only linked migration-history check confirms all eight migrations are applied. The matching frontend still needs to be published and verified.
+**16 October 2026 update:** checkbox products, kg quantities, collection checkout and student standings were released. All eight migrations through `202610160001_collection_checkout.sql` are verified applied. The later requested [reuse of deleted receipt numbers](RECEIPT_NUMBERING.md) adds `202610160002_reusable_receipt_numbers.sql`, which is pending review/application. Its matching frontend must be released afterward.
 
 The backend is PostgreSQL migrations, protected database functions, RLS policies, and a Supabase Edge Function. There is no separate Express server. The frontend and backend have independent packages; run npm commands inside the corresponding folder.
 
@@ -173,7 +173,7 @@ Reference: [function deployment](https://supabase.com/docs/guides/functions/depl
 
 Every public business table has RLS. Anonymous callers have no business grants. Active staff can read shared students/catalog/order/payment history and work through checked order/payment/collection functions. Only administrators manage catalog, organization, student imports and staff. Financial tables, students, profiles and audit logs have no direct client write grants. Detailed audit reads are administrator-only; `my_activity` exposes only the caller's limited summary.
 
-Amounts use `numeric`, authoritative generated line totals, and quarter-kilogram quantity constraints. Orders contain up to thirty distinct products, preserve item names/prices, and use a database sequence for `JP-0001` and larger bill numbers. Sequence gaps after rollbacks are expected. Optimistic versions prevent silent stale edits. New order/advance writes are atomic; overpayments, malformed quantities, stale catalog prices, and invalid collection transitions roll back.
+Amounts use `numeric`, authoritative generated line totals, and quarter-kilogram quantity constraints. Orders contain up to thirty distinct products and preserve item names/prices. The original database sequence keeps globally unique internal references, including after deletion or rollback. After the receipt-reuse migration, customer-facing receipt numbers use the lowest available active slot under a transaction lock; deleted numbers can be reused without modifying their historical records. Optimistic versions prevent silent stale edits. New order/advance writes are atomic; overpayments, malformed quantities, stale catalog prices, and invalid collection transitions roll back.
 
 Order entry uses a searchable product checklist. Only checked products have enabled quantity inputs and are submitted to the protected `save_order`. Quantities are entered directly in kg, in positive 0.25 kg increments, with no unit selector. The database independently validates quantities and computes authoritative financial totals. Stored item snapshots, bills, reports and exports remain in kg.
 

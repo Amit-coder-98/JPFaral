@@ -28,7 +28,7 @@ export const orderTotal = (order: Pick<Order, "items">) =>
   ) / 100;
 export const balance = (order: Pick<Order, "items" | "advance">) =>
   Math.round((orderTotal(order) - order.advance) * 100) / 100;
-/** Display positions only; canonical printed receipt IDs never change or repeat. */
+/** Display positions only; saved receipt numbers are assigned independently. */
 export function activeOrderSerials(orders: Order[]) {
   return new Map([...orders].filter(order => !order.deletedAt)
     .sort((a,b) => a.createdAt.localeCompare(b.createdAt) || a.number.localeCompare(b.number, undefined, {numeric:true}) || a.id.localeCompare(b.id))
@@ -53,5 +53,12 @@ export function metrics(orders: Order[], payments: Payment[]) {
 // Demo numbering is collision-free within this repository only. Production numbering MUST
 // be generated transactionally by the backend/database, never by a browser.
 export function nextOrderNumber(orders: Order[]) {
-  return `JP-${String(Math.max(0, ...orders.map((o) => Number(o.number.replace("JP-", "")) || 0)) + 1).padStart(4, "0")}`;
+  return `JP-${String(Math.max(0, ...orders.map((o) => Number((o.reference ?? o.number).replace("JP-", "")) || 0)) + 1).padStart(4, "0")}`;
+}
+/** Mock preview only; PostgreSQL assigns production receipts under a transaction lock. */
+export function nextReceiptNumber(orders: Order[]) {
+  const used = new Set(orders.filter(order => !order.deletedAt).map(order => order.number));
+  let slot = 1;
+  while (used.has(`JP-${String(slot).padStart(4, "0")}`)) slot++;
+  return `JP-${String(slot).padStart(4, "0")}`;
 }

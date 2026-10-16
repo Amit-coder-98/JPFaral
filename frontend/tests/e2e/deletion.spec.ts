@@ -80,7 +80,7 @@ test("bulk selections persist across pages, clear on filtering, and remove only 
   await expect(page.locator(".summary-pills")).toContainText("86 active orders");
 });
 
-test("deleted orders leave active list counts while the next receipt keeps its unique number", async ({ page }) => {
+test("deleted orders free their receipt number while new and archived bills keep separate history", async ({ page }) => {
   const first = await create(page, "Numbering regression temporary");
   await page.getByRole("link", { name: "Orders", exact: true }).click();
   await page.getByLabel("Search orders", { exact: true }).fill("Numbering regression");
@@ -90,7 +90,8 @@ test("deleted orders leave active list counts while the next receipt keeps its u
   await expect(page.locator(".summary-pills")).toContainText("0 active orders");
 
   const next = await create(page, "Numbering regression live");
-  expect(Number(next.number.slice(3))).toBeGreaterThan(Number(first.number.slice(3)));
+  expect(next.number).toBe(first.number);
+  expect(next.url).not.toBe(first.url);
   await expect(page.locator(".bill-receipt-label")).toHaveText("Receipt no.");
   await expect(page.locator(".bill h2")).toHaveText(next.number);
   await page.getByRole("link", { name: "Orders", exact: true }).click();
@@ -100,8 +101,20 @@ test("deleted orders leave active list counts while the next receipt keeps its u
   await expect(page.getByRole("button", { name: "List no.", exact: false })).toBeVisible();
   await expect(page.locator("tbody tr td").nth(1)).toHaveText("1");
   await expect(page.locator("tbody .order-link")).toHaveText(next.number);
-  await expect(page.locator(".order-numbering-note")).toContainText("Receipt numbers stay unique");
+  await expect(page.locator(".order-numbering-note")).toContainText("receipt numbers become available");
   await expect(page.locator(".pagination")).toContainText("Showing 1–1 of 1");
+  await page.getByRole("link", { name: "Activity & Audit Logs", exact: true }).click();
+  await page.getByLabel("Filter activity action").selectOption("Deleted");
+  await page.getByRole("link", { name: first.number, exact: true }).click();
+  await expect(page).toHaveURL(first.url);
+  await expect(page.locator(".bill")).toContainText("Numbering regression temporary");
+  await expect(page.locator(".bill")).toContainText("Deleted order");
+  await page.getByRole("link", { name: "Orders", exact: true }).click();
+  await page.getByLabel("Search orders", { exact: true }).fill("Numbering regression live");
+  await page.getByRole("link", { name: next.number, exact: true }).click();
+  await expect(page).toHaveURL(next.url);
+  await expect(page.locator(".bill")).toContainText("Numbering regression live");
+  await expect(page.locator(".audit-history")).not.toContainText("Temporary numbering check");
 });
 
 test("paid orders explain the refund requirement and keep their ledger after deletion", async ({ page }) => {

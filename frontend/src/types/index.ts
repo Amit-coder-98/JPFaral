@@ -56,6 +56,8 @@ export interface Order extends OrderInput {
   studentSnapshot?: { name: string; standard: string; division: string };
   id: string;
   number: string;
+  /** Permanent internal reference; displayed receipt numbers may be reused after deletion. */
+  reference?: string;
   status: OrderStatus;
   createdBy: string;
   createdAt: string;
@@ -99,6 +101,8 @@ export interface AuditLog {
   action: "Created" | "Edited" | "Imported" | "Updated" | "Deleted";
   recordType: string;
   recordId: string;
+  /** Stable parent order UUID, keeping reused receipt numbers out of identity matching. */
+  orderId?: string;
   timestamp: string;
   summary: string;
   changes: AuditChange[];

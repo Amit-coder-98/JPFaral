@@ -174,8 +174,27 @@ function fixture(active = true, deletionUnavailable = false, collectionUnavailab
     data: { user: { id: "admin" } as never },
     error: null,
   });
-  return { repo: new SupabaseRepository(client), calls };
+  return { repo: new SupabaseRepository(client), calls, tables };
 }
+describe("reusable customer receipt mapping",()=>{
+  it("displays a reused receipt while retaining distinct UUIDs, internal references, ledger and audit links",async()=>{
+    const {repo,tables}=fixture();
+    tables.orders[0].receipt_number="JP-0001";
+    tables.orders.push({...tables.orders[0],id:"old-order",order_number:"JP-0001",deleted_at:"2026-10-16T10:00:00Z",deletion_reason:"Test only",deletion_test_data:true});
+    tables.audit_logs.push(
+      {id:"old-log",entity_type:"orders",record_id:"old-order",record_label:"JP-0001",actor_id:"admin",action:"Deleted",created_at:"2026-10-16T10:00:00Z"},
+      {id:"new-log",entity_type:"orders",record_id:"order",record_label:"JP-10001",actor_id:"admin",action:"Created",created_at:"2026-10-16T11:00:00Z"},
+      {id:"new-payment-log",entity_type:"payments",record_id:"payment-1",record_label:"JP-10001",actor_id:"admin",action:"Created",created_at:"2026-10-16T11:01:00Z"},
+    );
+    await repo.refresh();const state=repo.getSnapshot();
+    expect(state.orders[0]).toMatchObject({id:"order",number:"JP-0001",reference:"JP-10001",advance:25});
+    expect(state.deletedOrders![0]).toMatchObject({id:"old-order",number:"JP-0001",reference:"JP-0001"});
+    expect(state.logs.find(log=>log.id==="old-log")).toMatchObject({orderId:"old-order",recordId:"JP-0001"});
+    expect(state.logs.find(log=>log.id==="new-log")).toMatchObject({orderId:"order",recordId:"JP-0001"});
+    expect(state.logs.find(log=>log.id==="new-payment-log")).toMatchObject({orderId:"order",recordId:"JP-0001"});
+    expect(state.payments.every(payment=>payment.orderId==="order")).toBe(true);
+  });
+});
 describe("Supabase order deletion contract", () => {
   it("sends exact versions/retry ID without a supplied actor and retains historical snapshots after refresh", async () => {
     const { repo, calls } = fixture();

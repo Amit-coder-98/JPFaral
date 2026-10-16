@@ -204,7 +204,14 @@ export class SupabaseRepository implements FrontendRepository {
       }))
       .sort((a, b) => b.date.localeCompare(a.date));
     const mappedLogs = logs
-      .map(mapAudit)
+      .map(row => {
+        const log = mapAudit(row);
+        if (!["orders", "order_items", "payments"].includes(str(row.entity_type))) return log;
+        const header = headers.find(order => str(order.order_number) === log.recordId);
+        return { ...log, orderId: header ? str(header.id) : str(row.entity_type) === "orders" ? str(row.record_id) : undefined,
+          ...(header ? { recordId: str(header.receipt_number || header.order_number),
+            summary: `${log.action} ${log.recordType} ${str(header.receipt_number || header.order_number)}` } : {}) };
+      })
       .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
     const mappedOrders = headers
         .map((o) => {
@@ -212,7 +219,8 @@ export class SupabaseRepository implements FrontendRepository {
           const lastReceipt = payments.find((p) => p.kind === "receipt");
           return {
             id: str(o.id),
-            number: str(o.order_number),
+            number: str(o.receipt_number || o.order_number),
+            reference: str(o.order_number),
             deletedAt: str(o.deleted_at) || undefined,
             deletedBy: str(o.deleted_by) || undefined,
             deletionReason: str(o.deletion_reason) || undefined,

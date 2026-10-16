@@ -8,6 +8,7 @@ import EmbeddedPostgres from "embedded-postgres";
 import pg from "pg";
 import { buildStudentDivisionRepairSql } from "../maintenance/studentDivisionRepair.mjs";
 import { collectionCases } from "./collectionCases.mjs";
+import { receiptNumberCases } from "./receiptNumberCases.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const admin = randomUUID(),
@@ -22,6 +23,7 @@ const deletionName = "202610140001_order_deletion.sql";
 const deletionOverrideName = "202610140002_collected_order_deletion.sql";
 const testCleanupName = "202610140003_test_order_cleanup.sql";
 const collectionName = "202610160001_collection_checkout.sql";
+const receiptName = "202610160002_reusable_receipt_numbers.sql";
 const collectionSql = () => fs.readFile(path.join(root, "supabase/migrations", collectionName), "utf8");
 const testCleanupSql = () => fs.readFile(path.join(root, "supabase/migrations", testCleanupName), "utf8");
 const deletionOverrideSql = () => fs.readFile(path.join(root, "supabase/migrations", deletionOverrideName), "utf8");
@@ -172,7 +174,7 @@ before(
     for (const name of (
       await fs.readdir(path.join(root, "supabase/migrations"))
     )
-      .filter((n) => n.endsWith(".sql") && n !== upgradeName && n !== deletionName && n !== deletionOverrideName && n !== testCleanupName && n !== collectionName)
+      .filter((n) => n.endsWith(".sql") && n !== upgradeName && n !== deletionName && n !== deletionOverrideName && n !== testCleanupName && n !== collectionName && n !== receiptName)
       .sort()) {
       try {
         await pool.query(
@@ -1304,3 +1306,5 @@ test('test cleanup migration replays without changing bills, ledger or audit his
 });
 
 collectionCases({test,assert,db:()=>pool,actor:admin,staff,inactive,save,input,productId,row,pay,asUser,migration:collectionSql,cleanup:cleanupOrders,targets:deletionTargets});
+receiptNumberCases({test,assert,db:()=>pool,admin,staff,inactive,save,input,productId,row,pay,asUser,
+  migration:()=>fs.readFile(path.join(root,"supabase/migrations",receiptName),"utf8"),cleanup:cleanupOrders,targets:deletionTargets});

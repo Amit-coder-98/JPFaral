@@ -32,7 +32,7 @@ import { rateMoney } from "../utils/pricing";
 import {
   balance,
   lineTotal,
-  nextOrderNumber,
+  nextReceiptNumber,
   orderTotal,
 } from "../utils/calculations";
 import { today, money, now } from "../utils/format";
@@ -129,7 +129,7 @@ const [division, setDivision] = useState(selectedInitial?.division ?? "");
   const total = orderTotal(form);
   const billNumber =
     original?.number ??
-    (isMock ? nextOrderNumber([...data.orders, ...(data.deletedOrders ?? [])]) : "Assigned on save");
+    (isMock ? nextReceiptNumber(data.orders) : "Assigned on save");
   const set = <K extends keyof OrderInput>(key: K, value: OrderInput[K]) => {
     setForm((f) => ({
       ...f,
