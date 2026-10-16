@@ -119,7 +119,7 @@ export function Shell() {
       ? "Order Details"
       : (navigation.find((n) => n.to === location.pathname)?.title ??
         "Workspace");
-  const awaiting = data.orders.filter((o) => o.status === "Ready");
+  const awaiting = data.orders.filter((o) => o.status === "Confirmed" || o.status === "Ready");
   return (
     <div
       className={`app-shell ${collapsed ? "is-collapsed" : ""} ${data.settings.compact ? "compact" : ""}`}
@@ -370,9 +370,9 @@ export function Shell() {
         open={notifications}
         onClose={() => setNotifications(false)}
         title="Collection desk"
-        description={`${awaiting.length} orders are ready for collection.`}
+        description={`${awaiting.length} orders await collection.`}
       >
-        {!awaiting.length && <p>No orders are ready for collection.</p>}
+        {!awaiting.length && <p>No orders await collection.</p>}
         {awaiting.slice(0, 5).map((o) => (
           <Link
             key={o.id}
@@ -386,17 +386,17 @@ export function Shell() {
                 {o.customerName} · {date(o.collectionDate)}
               </span>
             </div>
-            <Badge>Ready</Badge>
+            <Badge>Confirmed</Badge>
           </Link>
         ))}
         <Button
           variant="secondary"
           onClick={() => {
             setNotifications(false);
-            navigate("/orders?status=Ready");
+            navigate("/orders?status=Confirmed");
           }}
         >
-          View all ready orders
+          View pending collections
         </Button>
       </Modal>
     </div>

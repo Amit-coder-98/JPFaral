@@ -4,20 +4,20 @@ import {
   ArrowLeft,
   Pencil,
   Printer,
-  PackageCheck,
   CheckCircle2,
 } from "lucide-react";
 import { useApp } from "../app/Provider";
-import { PageHeader, Panel, Button, Empty, Modal } from "../components/ui";
+import { PageHeader, Panel, Button, Empty, DataTable } from "../components/ui";
 import { Bill } from "../components/orders/Bill";
-import { dateTime } from "../utils/format";
+import { dateTime, money } from "../utils/format";
+import { paymentAmount } from "../utils/calculations";
+import { CollectionDialog } from "../components/orders/CollectionDialog";
 import { PaymentDialog } from "../components/orders/PaymentDialog";
 export default function OrderDetails() {
   const { id } = useParams();
-  const { data, user, repository, toast, isMock } = useApp();
+  const { data, user, isMock } = useApp();
   const [collect, setCollect] = useState(false);
   const [payment, setPayment] = useState(false);
-  const [busy, setBusy] = useState(false);
   const order = [...data.orders, ...(user?.role === "Super Admin" ? data.deletedOrders ?? [] : [])].find((o) => o.id === id);
   if (!order)
     return (
@@ -33,6 +33,7 @@ export default function OrderDetails() {
     );
   const logs = data.logs.filter((l) => l.recordId === order.number);
   const name = (id: string) => data.staff.find((s) => s.id === id)?.name ?? "—";
+  const receipts = data.payments.filter(payment => payment.orderId === order.id).sort((a,b) => a.date.localeCompare(b.date));
   return (
     <>
       <PageHeader
@@ -49,14 +50,17 @@ export default function OrderDetails() {
               <Printer size={16} />
               Print bill
             </Button>
-            {!order.deletedAt && (isMock || order.status !== "Collected") && (
-              <Link to={`/orders/${order.id}/edit`} className="button primary">
+            {!order.deletedAt && order.status !== "Collected" && (
+              <Link to={`/orders/${order.id}/edit`} className="button secondary">
                 <Pencil size={16} />
                 Edit order
               </Link>
             )}
             {!order.deletedAt && order.status !== "Draft" && (
-              <Button onClick={() => setPayment(true)}>Record payment</Button>
+              <Button variant="secondary" onClick={() => setPayment(true)}>Record payment</Button>
+            )}
+            {!order.deletedAt && (order.status === "Confirmed" || order.status === "Ready") && (
+              <Button aria-label="Collect order & settle payment" onClick={() => setCollect(true)}><CheckCircle2 size={16} />Collect order</Button>
             )}
           </>
         }
@@ -91,32 +95,6 @@ export default function OrderDetails() {
               </dd>
             </div>
           </dl>
-          {!order.deletedAt && order.status === "Confirmed" && (
-            <Button
-              variant="secondary"
-              loading={busy}
-              onClick={async () => {
-                setBusy(true);
-                try {
-                  await repository.setOrderStatus(order.id, "Ready", user!.id);
-                  toast("Order marked ready for collection.");
-                } catch (e) {
-                  toast((e as Error).message, true);
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              <PackageCheck size={16} />
-              Mark ready for collection
-            </Button>
-          )}
-          {!order.deletedAt && order.status === "Ready" && (
-            <Button onClick={() => setCollect(true)}>
-              <CheckCircle2 size={16} />
-              Mark as collected
-            </Button>
-          )}
           {!order.deletedAt && order.status === "Draft" && (
             <Link className="button primary" to={`/orders/${order.id}/edit`}>
               Continue draft
@@ -156,39 +134,17 @@ export default function OrderDetails() {
           </div>
         </Panel>
       </div>
-      <Modal
-        open={collect}
-        onClose={() => setCollect(false)}
-        title="Confirm collection"
-        description={`Confirm ${order.number} was handed to ${order.collectorName}.`}
-      >
-        <div className="modal-actions">
-          <Button variant="secondary" onClick={() => setCollect(false)}>
-            Cancel
-          </Button>
-          <Button
-            loading={busy}
-            onClick={async () => {
-              setBusy(true);
-              try {
-                await repository.setOrderStatus(
-                  order.id,
-                  "Collected",
-                  user!.id,
-                );
-                setCollect(false);
-                toast("Collection recorded.");
-              } catch (e) {
-                toast((e as Error).message, true);
-              } finally {
-                setBusy(false);
-              }
-            }}
-          >
-            Confirm collected
-          </Button>
-        </div>
-      </Modal>
+      {order.status !== "Draft" && <Panel className="order-payment-history" title="Payment history" description="Advance, collection payments and refunds remain separate transactions.">
+        {receipts.length ? <DataTable rows={receipts} pageSize={5} columns={[
+          {key:"date",label:"Received at",render:payment=>dateTime(payment.date)},
+          {key:"kind",label:"Transaction",render:payment=>payment.kind === "refund" ? "Refund" : "Receipt"},
+          {key:"amount",label:"Amount",render:payment=>money(paymentAmount(payment))},
+          {key:"method",label:"Method",render:payment=>payment.method},
+          {key:"reference",label:"Reference / UTR",render:payment=>payment.utr || "—"},
+          {key:"actor",label:"Recorded by",render:payment=>name(payment.receivedBy)},
+        ]} /> : <p className="muted">No payments received yet.</p>}
+      </Panel>}
+      {collect && <CollectionDialog order={order} onClose={() => setCollect(false)} />}
       {payment && (
         <PaymentDialog orderId={order.id} onClose={() => setPayment(false)} />
       )}

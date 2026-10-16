@@ -1,3 +1,4 @@
+import { orderStatusLabel } from "../utils/orderStatus";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
@@ -33,7 +34,7 @@ export default function Orders() {
   const [exporting, setExporting] = useState(false);
   const [params] = useSearchParams();
   const [search, setSearch] = useState(params.get("search") ?? "");
-  const [status, setStatus] = useState(params.get("status") ?? "");
+  const [status, setStatus] = useState(params.get("status") === "Ready" ? "Confirmed" : params.get("status") ?? "");
   const [filters, setFilters] = useState(false);
   const [standard, setStandard] = useState("");
   const [division, setDivision] = useState("");
@@ -50,7 +51,7 @@ export default function Orders() {
           `${o.number} ${o.customerName} ${o.customerPhone} ${s?.name}`
             .toLowerCase()
             .includes(search.toLowerCase()) &&
-          (!status || o.status === status) &&
+          (!status || orderStatusLabel(o.status) === status) &&
           (!standard || s?.standard === standard) &&
           (!division || s?.division === division) &&
           (!staff || o.createdBy === staff) &&
@@ -91,7 +92,7 @@ export default function Orders() {
     "Division",
     "Order date",
     "Total",
-    "Advance",
+    "Total received",
     "Balance",
     "Payment method",
     "UTR",
@@ -120,7 +121,7 @@ export default function Orders() {
       o.utr,
       o.collectionDate,
       o.collectorName,
-      o.status,
+      orderStatusLabel(o.status),
       data.staff.find((s) => s.id === o.createdBy)?.name ?? "",
       data.staff.find((s) => s.id === o.editedBy)?.name ?? "",
       o.items
@@ -210,7 +211,7 @@ export default function Orders() {
               onChange={(e) => setStatus(e.target.value)}
             >
               <option value="">All statuses</option>
-              {["Draft", "Confirmed", "Ready", "Collected"].map((s) => (
+              {["Draft", "Confirmed", "Collected"].map((s) => (
                 <option key={s}>{s}</option>
               ))}
             </select>

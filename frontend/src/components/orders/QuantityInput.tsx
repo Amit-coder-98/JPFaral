@@ -5,45 +5,46 @@ import {
   QUANTITY_MESSAGE,
 } from "../../utils/pricing";
 import {
-  convertQuantityText,
   quantityKgFromInput,
   quantityText,
-  type QuantityUnit,
 } from "../../utils/quantity";
 
 export function QuantityInput({
   quantity,
   index,
   error,
+  disabled = false,
+  label,
   onChange,
 }: {
   quantity: number;
   index: number;
   error?: string;
+  disabled?: boolean;
+  label?: string;
   onChange: (quantityKg: number) => void;
 }) {
-  const [unit, setUnit] = useState<QuantityUnit>("kg");
+  const unit = "kg";
   const [text, setText] = useState(() => quantityText(quantity, "kg"));
   useEffect(() => {
     if (!Object.is(quantity, quantityKgFromInput(text, unit)))
       setText(quantityText(quantity, unit));
   }, [quantity, text, unit]);
-  const invalid = !!error || !isValidQuantity(quantity);
+  const invalid = !disabled && (!!error || !isValidQuantity(quantity));
   const description = invalid ? `quantity-error-${index}` : undefined;
   return (
     <>
       <div className="quantity-input">
         <input
-          aria-label={`Quantity for item ${index + 1}`}
+          aria-label={label ?? `Quantity for item ${index + 1}`}
           type="number"
           inputMode="decimal"
-          step={unit === "kg" ? "0.25" : "250"}
-          min={unit === "kg" ? "0.25" : "250"}
+          step="0.25"
+          min="0.25"
           max={quantityText(MAX_QUANTITY_KG, unit)}
-          placeholder={
-            unit === "kg" ? "उदा. 0.25, 0.5, 1, 10" : "उदा. 250, 500, 750"
-          }
-          value={text}
+          placeholder="उदा. 0.25, 0.5, 1, 10"
+          value={disabled ? "" : text}
+          disabled={disabled}
           aria-invalid={invalid}
           aria-describedby={description}
           onChange={(e) => {
@@ -51,20 +52,7 @@ export function QuantityInput({
             onChange(quantityKgFromInput(e.target.value, unit));
           }}
         />
-        <select
-          aria-label={`Quantity unit for item ${index + 1}`}
-          value={unit}
-          onChange={(e) => {
-            const next = e.target.value as QuantityUnit;
-            const converted = convertQuantityText(text, unit, next);
-            setUnit(next);
-            setText(converted);
-            onChange(quantityKgFromInput(converted, next));
-          }}
-        >
-          <option value="kg">kg</option>
-          <option value="g">gm</option>
-        </select>
+        <span className="quantity-unit" aria-hidden="true">kg</span>
       </div>
       {invalid && (
         <span id={description} className="field-error" role="alert">

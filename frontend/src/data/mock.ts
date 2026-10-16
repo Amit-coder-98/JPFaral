@@ -165,7 +165,7 @@ export function seedData(): AppState {
         i % 2 !== 0 && i % 3 === 0
           ? `Mrs. ${student.name.split(" ")[1]}`
           : student.name,
-      status: collected ? "Collected" : i % 4 === 0 ? "Ready" : "Confirmed",
+      status: collected ? "Collected" : "Confirmed",
       createdBy: user.id,
       createdAt,
       editedBy: user.id,

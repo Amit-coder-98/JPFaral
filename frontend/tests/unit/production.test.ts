@@ -22,7 +22,7 @@ const validOrder = {
   collectorType: "Student",
   collectorName: "Student",
 };
-function fixture(active = true, deletionUnavailable = false) {
+function fixture(active = true, deletionUnavailable = false, collectionUnavailable = false) {
   const tables: Record<string, Record<string, unknown>[]> = {
     profiles: [
       {
@@ -121,6 +121,14 @@ function fixture(active = true, deletionUnavailable = false) {
         return new Response(JSON.stringify("order"), {
           headers: { "Content-Type": "application/json" },
         });
+      if (path.includes("/rpc/collect_order")) {
+        if (collectionUnavailable) return new Response(JSON.stringify({code:"PGRST202",message:"Function not found"}),{status:404,headers:{"Content-Type":"application/json"}});
+        const body=JSON.parse(String(options?.body));
+        tables.orders[0].status="Collected";
+        tables.orders[0].version=Number(tables.orders[0].version)+2;
+        if(body.p_amount>0) tables.payments.push({id:"collection-payment",order_id:body.p_id,amount:String(body.p_amount),method:body.p_method,reference:body.p_reference,kind:"receipt",received_by:"admin",paid_at:"2026-10-16T10:00:00Z"});
+        return new Response("null",{headers:{"Content-Type":"application/json"}});
+      }
       if (path.includes("/rpc/delete_orders")) {
         if (deletionUnavailable) return new Response(JSON.stringify({code:"PGRST202",message:"Function not found"}),
           {status:404,headers:{"Content-Type":"application/json"}});
@@ -366,4 +374,21 @@ describe("Supabase adapter contract (simulated HTTP)", () => {
     expect(body.p_batch_id).toBe("batch-id");
     expect(body).not.toHaveProperty("p_actor");
   });
+});
+
+describe("collection RPC contract",()=>{
+ it("submits one versioned atomic call, derives the actor from Auth and refreshes immutable receipt snapshots",async()=>{
+  const {repo,calls}=fixture(); await repo.refresh();
+  const requestId=crypto.randomUUID();
+  await repo.collectOrder({orderId:"order",version:5,amount:75,method:"Online",utr:"FINAL-75",requestId},"forged-actor");
+  expect(calls.filter(call=>call.path.endsWith('/rpc/collect_order'))).toHaveLength(1);
+  expect(calls.find(call=>call.path.endsWith('/rpc/collect_order'))?.body).toEqual({p_id:"order",p_version:5,p_request_id:requestId,p_amount:75,p_method:"Online",p_reference:"FINAL-75"});
+  expect(repo.getSnapshot().orders[0]).toMatchObject({status:"Collected",advance:100,number:"JP-10001"});
+  expect(repo.getSnapshot().orders[0].items[0]).toMatchObject({name:"Historical name",price:100});
+  expect(repo.getSnapshot().payments).toHaveLength(4);
+ });
+ it("identifies the new migration when the deployed RPC is missing",async()=>{
+  const {repo}=fixture(true,false,true); await repo.refresh();
+  await expect(repo.collectOrder({orderId:"order",version:5,amount:75,method:"Cash",utr:"",requestId:crypto.randomUUID()},"admin")).rejects.toThrow("202610160001_collection_checkout.sql");
+ });
 });

@@ -1,6 +1,13 @@
 // Match existing numeric(6,2) quantity and numeric(12,2) order-total capacity.
 export const MAX_QUANTITY_KG = 9999.75;
 export const MAX_ORDER_TOTAL = 9_999_999_999.99;
+/** Exact decimal-to-paise conversion within PostgreSQL's existing money capacity. */
+export function moneyInPaise(value: number): number | null {
+  if (!Number.isFinite(value) || value < 0 || value > MAX_ORDER_TOTAL) return null;
+  const parts = /^(\d+)(?:\.(\d{1,2}))?$/.exec(String(value));
+  if (!parts) return null;
+  return Number(BigInt(parts[1]) * 100n + BigInt((parts[2] ?? "").padEnd(2,"0")));
+}
 export const QUANTITY_MESSAGE =
   "प्रमाण शून्यापेक्षा जास्त आणि 250 ग्रॅम (0.25 kg) च्या पटीत असावे.";
 export const isValidQuantity = (quantity: number) =>

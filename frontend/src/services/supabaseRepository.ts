@@ -7,6 +7,7 @@ import type {
   OrderInput,
   OrderStatus,
   PaymentInput,
+  CollectionInput,
   Product,
   Settings,
   StaffUser,
@@ -453,6 +454,18 @@ export class SupabaseRepository implements FrontendRepository {
       p_version: this.state.orders.find((o) => o.id === id)?.version,
     });
     await this.refresh();
+  }
+  async collectOrder(input: CollectionInput, _actor: string) {
+    const { error } = await this.api().rpc("collect_order", {
+      p_id: input.orderId, p_version: input.version, p_request_id: input.requestId,
+      p_amount: input.amount, p_method: input.method, p_reference: input.utr,
+    });
+    if (error) {
+      if (error.code === "PGRST202") throw new Error("Collection checkout needs migration 202610160001_collection_checkout.sql. Apply it before using this action.");
+      throw new Error(error.message);
+    }
+    try { await this.refresh(); }
+    catch { throw new Error("Collection was saved, but the view could not refresh. Refresh or retry the same request."); }
   }
   async recordPayment(input: PaymentInput, _actor: string) {
     await this.rpc("record_payment", {

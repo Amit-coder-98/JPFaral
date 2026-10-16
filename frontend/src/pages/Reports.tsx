@@ -1,3 +1,4 @@
+import { orderStatusLabel } from "../utils/orderStatus";
 import { useState } from "react";
 import { Download, Printer } from "lucide-react";
 import { useApp } from "../app/Provider";
@@ -109,7 +110,7 @@ export default function Reports() {
                     orderTotal(o),
                     o.advance,
                     balance(o),
-                    o.status,
+                    orderStatusLabel(o.status),
                   ]),
                 )
               }
@@ -227,9 +228,9 @@ export default function Reports() {
             description="From order desk to a happy handover."
           >
             <BreakdownChart
-              data={["Confirmed", "Ready", "Collected"].map((name) => ({
+              data={["Confirmed", "Collected"].map((name) => ({
                 name,
-                value: orders.filter((o) => o.status === name).length,
+                value: orders.filter((o) => orderStatusLabel(o.status) === name).length,
               }))}
             />
           </Panel>

@@ -28,8 +28,14 @@ export const orderTotal = (order: Pick<Order, "items">) =>
   ) / 100;
 export const balance = (order: Pick<Order, "items" | "advance">) =>
   Math.round((orderTotal(order) - order.advance) * 100) / 100;
+/** Display positions only; canonical printed receipt IDs never change or repeat. */
+export function activeOrderSerials(orders: Order[]) {
+  return new Map([...orders].filter(order => !order.deletedAt)
+    .sort((a,b) => a.createdAt.localeCompare(b.createdAt) || a.number.localeCompare(b.number, undefined, {numeric:true}) || a.id.localeCompare(b.id))
+    .map((order,index) => [order.id,index + 1]));
+}
 export function metrics(orders: Order[], payments: Payment[]) {
-  const confirmed = orders.filter((o) => o.status !== "Draft");
+  const confirmed = orders.filter((o) => !o.deletedAt && o.status !== "Draft");
   const ids = new Set(confirmed.map((o) => o.id));
   const sales = confirmed.reduce((sum, o) => sum + orderTotal(o), 0);
   const collected = payments

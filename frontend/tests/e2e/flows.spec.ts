@@ -1,3 +1,4 @@
+import { selectProduct, productQuantity, productRow, collectOrder } from "./helpers/orderProducts";
 import { test, expect, type Page } from "@playwright/test";
 import fs from "node:fs/promises";
 import * as xlsx from "xlsx";
@@ -22,8 +23,8 @@ async function chooseStudent(page: Page) {
 async function orderForm(page: Page) {
   await page.goto("/orders/new");
   await chooseStudent(page);
-  await page.getByLabel("Order item 1", { exact: true }).selectOption("p1");
-  await page.getByLabel("Quantity for item 1").fill("0.5");
+  await selectProduct(page, "p1");
+  await productQuantity(page, "p1").fill("0.5");
   await page
     .getByLabel("Advance amount (optional)", { exact: true })
     .fill("100");
@@ -98,13 +99,12 @@ test("editable kg quantities update quarter-rate totals and reject invalid rows"
   page,
 }) => {
   await orderForm(page);
-  const quantity = page.getByLabel("Quantity for item 1");
+  const quantity = productQuantity(page, "p1");
   await expect(quantity).toHaveAttribute("type", "number");
   await expect(quantity).toHaveAttribute(
     "placeholder",
     "उदा. 0.25, 0.5, 1, 10",
   );
-  await expect(page.getByLabel("Quantity unit for item 1", {exact:true})).toHaveValue("kg");
   for (const [value, total] of [
     ["0.25", "₹110.00"],
     ["0.5", "₹220.00"],
@@ -164,65 +164,7 @@ test("editable kg quantities update quarter-rate totals and reject invalid rows"
   );
 });
 
-test("gram quantities preserve amounts when switching units, removing rows, saving and editing", async ({ page }) => {
-  await orderForm(page);
-  const quantity = page.getByLabel("Quantity for item 1", {exact:true});
-  const unit = page.getByLabel("Quantity unit for item 1", {exact:true});
-  await unit.selectOption("g");
-  await expect(quantity).toHaveValue("500");
-  await expect(quantity).toHaveAttribute("step","250");
-  await expect(quantity).toHaveAttribute("max","9999750");
-  for (const [value,total] of [["250","₹110.00"],["750","₹330.00"],["10000","₹4,400.00"]]) {
-    await quantity.fill(value);
-    await expect(page.locator(".item-subtotal")).toContainText(total);
-  }
-  await expect(page.locator(".summary-total")).toContainText("₹4,300.00");
-  await unit.selectOption("kg");
-  await expect(quantity).toHaveValue("10");
-  await expect(page.locator(".item-subtotal")).toContainText("₹4,400.00");
-  await quantity.fill("0.3");
-  await unit.selectOption("g");
-  await expect(quantity).toHaveValue("300");
-  await expect(quantity).toHaveAttribute("aria-invalid","true");
-  for (const value of ["300","0","-250",""]) {
-    await quantity.fill(value);
-    await page.getByRole("button",{name:"Save order",exact:true}).last().click();
-    await expect(page.locator("#quantity-error-0")).toContainText("250 ग्रॅम");
-    await expect(page.getByRole("dialog")).toHaveCount(0);
-  }
-  await unit.selectOption("kg");
-  await expect(quantity).toHaveValue("");
-  await quantity.fill("10");
-  await page.getByRole("button",{name:"Add another item",exact:true}).click();
-  await page.getByLabel("Order item 2",{exact:true}).selectOption("p2");
-  await page.getByLabel("Quantity unit for item 2",{exact:true}).selectOption("g");
-  await page.getByLabel("Quantity for item 2",{exact:true}).fill("750");
-  await page.getByRole("button",{name:"Remove item 1",exact:true}).click();
-  await expect(unit).toHaveValue("g");
-  await expect(quantity).toHaveValue("750");
-  await expect(page.locator(".item-subtotal")).toContainText("₹495.00");
-  await page.getByRole("button",{name:"Add another item",exact:true}).click();
-  await expect(page.getByLabel("Quantity unit for item 2",{exact:true})).toHaveValue("kg");
-  await page.getByRole("button",{name:"Remove item 2",exact:true}).click();
-  await page.screenshot({path:"test-results/quantity-units-desktop.png",fullPage:true});
-  await page.getByRole("button",{name:"Save order",exact:true}).last().click();
-  await page.getByRole("button",{name:"View order",exact:true}).click();
-  await expect(page.locator(".bill-table")).toContainText("0.75 kg");
-  await expect(page.locator(".bill")).toContainText("₹495.00");
-  await expect(page.locator(".bill")).toContainText("₹395.00");
-  await page.getByRole("link",{name:"Edit order",exact:true}).click();
-  await expect(unit).toHaveValue("kg");
-  await expect(quantity).toHaveValue("0.75");
-  await unit.selectOption("g");
-  await expect(quantity).toHaveValue("750");
-  await quantity.fill("1250");
-  await page.getByRole("button",{name:"Save changes",exact:true}).last().click();
-  await page.getByRole("button",{name:"View order",exact:true}).click();
-  await expect(page.locator(".bill")).toContainText("₹825.00");
-  await expect(page.locator(".bill")).toContainText("₹725.00");
-});
-
-test("desktop dashboard, navigation, charts and collapse", async ({ page }) => {
+test("desktop dashboard, school summaries, navigation and collapse", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/dashboard");
@@ -272,14 +214,9 @@ test("create, validate, preview, save, edit and reconcile an order", async ({
   await expect(page.getByLabel("Collector name", { exact: false })).toHaveValue(
     "Aarav Deshmukh",
   );
-  await page.getByRole("button", { name: "Add another item" }).click();
-  await page.getByLabel("Order item 2", { exact: true }).selectOption("p2");
-  await expect(
-    page
-      .getByLabel("Order item 2", { exact: true })
-      .locator('option[value="p1"]'),
-  ).toBeDisabled();
-  await page.getByRole("button", { name: "Remove item 2" }).click();
+  await selectProduct(page, "p2");
+  await expect(productRow(page,"p1").getByRole("checkbox")).toBeChecked();
+  await productRow(page,"p2").getByRole("checkbox").uncheck();
   await page.getByRole("radio", { name: "Online", exact: true }).check();
   await page
     .getByRole("button", { name: "Save order", exact: true })
@@ -324,7 +261,7 @@ test("create, validate, preview, save, edit and reconcile an order", async ({
   await page.getByRole("button", { name: "View order", exact: true }).click();
   await expect(page.locator(".bill")).toContainText("DEMO-TEST-123");
   await page.getByRole("link", { name: "Edit order", exact: true }).click();
-  await expect(page.getByLabel("Quantity for item 1")).toHaveValue("0.5");
+  await expect(productQuantity(page, "p1")).toHaveValue("0.5");
   await page
     .getByLabel("Advance amount (optional)", { exact: true })
     .fill("120");
@@ -335,13 +272,11 @@ test("create, validate, preview, save, edit and reconcile an order", async ({
   await page.getByRole("button", { name: "View order", exact: true }).click();
   await expect(page.locator(".bill")).toContainText("₹100.00");
   await expect(page.getByText("advance", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Mark ready for collection" }).click();
-  await page.getByRole("button", { name: "Mark as collected" }).click();
-  await page.getByRole("button", { name: "Confirm collected" }).click();
+  await collectOrder(page);
   await expect(page.locator(".bill")).toContainText("Collected");
   await page.getByRole("link", { name: "Payments", exact: true }).click();
   await page.getByRole("textbox", { name: "Search payments" }).fill("JP-0087");
-  await expect(page.locator("tbody tr")).toHaveCount(1);
+  await expect(page.locator("tbody tr")).toHaveCount(2);
   await expect(page.locator("tbody")).toContainText("₹120.00");
   await page
     .getByRole("link", { name: "Activity & Audit Logs", exact: true })
@@ -380,7 +315,7 @@ test("drafts resume, student history and keyboard autocomplete", async ({
     .click();
   await expect(page.getByRole("dialog")).toContainText("JP-0001");
   await page.getByRole("button", { name: "Close dialog" }).click();
-  await page.getByLabel("Order item 1", { exact: true }).selectOption("p1");
+  await selectProduct(page, "p1");
   await page
     .getByRole("button", { name: "Save order", exact: true })
     .last()
@@ -394,7 +329,7 @@ test("filtered orders, sorting, pagination and actual CSV download", async ({
   await expect(page.locator(".pagination")).toContainText(/Showing 1–\d+ of 86/);
   await page.getByRole("button", { name: "Next page" }).click();
   await expect(page.locator(".pagination")).toContainText(/Page 2 of \d+/);
-  await page.getByRole("button", { name: "Order no.", exact: false }).click();
+  await page.getByRole("button", { name: "Receipt no.", exact: false }).click();
   await page.getByRole("textbox", { name: "Search orders" }).fill("JP-0001");
   await expect(page.locator("tbody tr")).toHaveCount(1);
   const downloadPromise = page.waitForEvent("download");
@@ -598,7 +533,7 @@ test("school XLS reports skip title rows, use explicit division mappings and all
   await expect(
     page.getByLabel("Customer phone number", { exact: false }),
   ).toHaveValue("");
-  await page.getByLabel("Order item 1", { exact: true }).selectOption("p1");
+  await selectProduct(page, "p1");
   await page
     .getByRole("button", { name: "Save order", exact: true })
     .last()
@@ -631,7 +566,8 @@ test("product price changes preserve old bills and affect new rows", async ({
   expect(await page.locator(".bill").innerText()).toBe(oldBill);
   await page.getByRole("link", { name: "Create Order", exact: true }).click();
   await chooseStudent(page);
-  await page.getByLabel("Order item 1", { exact: true }).selectOption("p1");
+  await selectProduct(page, "p1");
+  await productQuantity(page,"p1").fill("1");
   await expect(page.locator(".order-items")).toContainText("₹500.00");
   await expect(
     page.locator(".order-items tbody tr").first().locator("td").last(),
@@ -692,9 +628,8 @@ test("mobile and tablet layouts, drawer and print bill", async ({ page }) => {
     await page.getByRole("button", { name: "Open navigation" }).click();
     await page.getByRole("link", { name: "Create Order", exact: true }).click();
     await chooseStudent(page);
-    await page.getByLabel("Order item 1", { exact: true }).selectOption("p1");
-    await page.getByLabel("Quantity unit for item 1",{exact:true}).selectOption("g");
-    await page.getByLabel("Quantity for item 1",{exact:true}).fill("250");
+    await selectProduct(page, "p1");
+    await productQuantity(page, "p1").fill("0.25");
     await expect(page.locator(".item-subtotal")).toContainText("₹110.00");
     expect(
       await page.evaluate(

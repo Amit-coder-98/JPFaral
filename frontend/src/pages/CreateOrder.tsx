@@ -6,8 +6,6 @@ import {
   useSearchParams,
 } from "react-router-dom";
 import {
-  Plus,
-  Trash2,
   ArrowLeft,
   Search,
   UserRound,
@@ -27,7 +25,7 @@ import { useApp } from "../app/Provider";
 import { Button, Field, Modal, PageHeader } from "../components/ui";
 import { Bill } from "../components/orders/Bill";
 import { OrderTable } from "../components/orders/OrderTable";
-import { QuantityInput } from "../components/orders/QuantityInput";
+import { ProductChecklist } from "../components/orders/ProductChecklist";
 import { divisions } from "../data/reference";
 import { orderSchema, quantitySchema } from "../services/validation";
 import { rateMoney } from "../utils/pricing";
@@ -39,12 +37,11 @@ import {
 } from "../utils/calculations";
 import { today, money, now } from "../utils/format";
 import type { Order, OrderInput, Student } from "../types";
-const blankItem = () => ({ productId: "", name: "", price: 0, quantity: 1 });
 const blankOrder = (): OrderInput => ({
   studentId: "",
   customerName: "",
   customerPhone: "",
-  items: [blankItem()],
+  items: [],
   advance: 0,
   paymentMethod: "Cash",
   utr: "",
@@ -103,10 +100,7 @@ export default function CreateOrder() {
         : blankOrder(),
   );
   const [standard, setStandard] = useState(selectedInitial?.standard ?? "");
-  const [itemKeys, setItemKeys] = useState(() =>
-    form.items.map(() => crypto.randomUUID()),
-  );
-  const [division, setDivision] = useState(selectedInitial?.division ?? "");
+const [division, setDivision] = useState(selectedInitial?.division ?? "");
   const [studentSearch, setStudentSearch] = useState("");
   const [studentOpen, setStudentOpen] = useState(false);
   const [studentIndex, setStudentIndex] = useState(0);
@@ -473,7 +467,7 @@ export default function CreateOrder() {
           <FormSection
             step="03"
             title="Sweet & faral items"
-            description="प्रति पाव किलो दर (250 ग्रॅम). प्रमाण भरा आणि kg किंवा gm निवडा. प्रमाण 250 ग्रॅमच्या पटीत असावे."
+            description="Select ordered items and enter quantities in kg, in multiples of 0.25."
             icon={ShoppingBag}
           >
             <div className="order-number-strip">
@@ -486,141 +480,8 @@ export default function CreateOrder() {
                   : "Generated securely when saved"}
               </span>
             </div>
-            <div className="table-scroll">
-              <table className="data-table order-items">
-                <thead>
-                  <tr>
-                    <th>Order Item</th>
-                    <th>दर पाव किलो</th>
-                    <th>प्रमाण</th>
-                    <th className="align-right">किंमत रुपये</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {form.items.map((item, i) => (
-                    <tr key={itemKeys[i]}>
-                      <td data-label="Order Item">
-                        <div className="product-select-cell">
-                          <select
-                            aria-label={`Order item ${i + 1}`}
-                            value={item.productId}
-                            onChange={(e) => {
-                              const p = data.products.find(
-                                (p) => p.id === e.target.value,
-                              );
-                              const snapshot =
-                                original?.status !== "Draft"
-                                  ? original?.items.find(
-                                      (it) => it.productId === p?.id,
-                                    )
-                                  : undefined;
-                              set(
-                                "items",
-                                form.items.map((it, k) =>
-                                  k === i
-                                    ? {
-                                        ...it,
-                                        productId: p?.id ?? "",
-                                        name: snapshot?.name ?? p?.name ?? "",
-                                        price: snapshot?.price ?? p?.price ?? 0,
-                                      }
-                                    : it,
-                                ),
-                              );
-                            }}
-                          >
-                            <option value="">Select a product</option>
-                            {data.products
-                              .filter(
-                                (p) => p.available || p.id === item.productId,
-                              )
-                              .map((p) => (
-                                <option
-                                  key={p.id}
-                                  value={p.id}
-                                  disabled={form.items.some(
-                                    (it, k) => k !== i && it.productId === p.id,
-                                  )}
-                                >
-                                  {p.name}
-                                  {!p.available ? " (unavailable)" : ""}
-                                </option>
-                              ))}
-                          </select>
-                          <button
-                            className="icon-button remove-item"
-                            aria-label={`Remove item ${i + 1}`}
-                            onClick={() => {
-                              setItemKeys((keys) =>
-                                form.items.length === 1
-                                  ? [crypto.randomUUID()]
-                                  : keys.filter((_, k) => k !== i),
-                              );
-                              set(
-                                "items",
-                                form.items.length === 1
-                                  ? [blankItem()]
-                                  : form.items.filter((_, k) => k !== i),
-                              );
-                            }}
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                        {errors[`items.${i}.productId`] && (
-                          <span className="field-error" role="alert">
-                            Select a product
-                          </span>
-                        )}
-                      </td>
-                      <td data-label="दर पाव किलो">
-                        {item.productId ? rateMoney(item.price) : "—"}
-                        <small className="per-unit">
-                          दर पाव किलो (250 ग्रॅम)
-                        </small>
-                      </td>
-                      <td data-label="प्रमाण">
-                        <QuantityInput
-                          quantity={item.quantity}
-                          index={i}
-                          error={errors[`items.${i}.quantity`]}
-                          onChange={(quantity) =>
-                            set(
-                              "items",
-                              form.items.map((it, k) =>
-                                k === i ? { ...it, quantity } : it,
-                              ),
-                            )
-                          }
-                        />
-                      </td>
-                      <td className="align-right" data-label="किंमत रुपये">
-                        <strong>{money(lineTotal(item))}</strong>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {errors.items && <p className="field-error">{errors.items}</p>}
-            <div className="items-footer">
-              <Button
-                variant="ghost"
-                disabled={
-                  form.items.length >= 30 ||
-                  form.items.length >=
-                    data.products.filter((p) => p.available).length
-                }
-                onClick={() => {
-                  setItemKeys((keys) => [...keys, crypto.randomUUID()]);
-                  set("items", [...form.items, blankItem()]);
-                }}
-              >
-                <Plus size={15} />
-                Add another item
-              </Button>
-              <span>{form.items.length} / 30 items</span>
-            </div>
+            <ProductChecklist products={data.products} items={form.items} original={original}
+              errors={errors} onChange={items => set("items", items)} />
             <div className="item-subtotal">
               <span>Subtotal / final total</span>
               <strong>{money(total)}</strong>
@@ -1025,7 +886,6 @@ export default function CreateOrder() {
               navigate("/orders/new");
               if (!id) {
                 setForm(blankOrder());
-                setItemKeys([crypto.randomUUID()]);
                 setStandard("");
                 setDivision("");
               }

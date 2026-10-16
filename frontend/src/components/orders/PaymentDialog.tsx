@@ -3,6 +3,7 @@ import { useApp } from "../../app/Provider";
 import { Button, Field, Modal } from "../ui";
 import { balance } from "../../utils/calculations";
 import { money } from "../../utils/format";
+import { moneyInPaise } from "../../utils/pricing";
 import type { PaymentInput } from "../../types";
 export function PaymentDialog({
   orderId,
@@ -38,10 +39,7 @@ export function PaymentDialog({
           setError("");
           if (
             !order ||
-            !Number.isFinite(form.amount) ||
-            form.amount <= 0 ||
-            Math.abs(form.amount * 100 - Math.round(form.amount * 100)) >
-              0.00001
+            moneyInPaise(form.amount) === null || form.amount <= 0
           ) {
             setError(
               "Choose an order and a positive amount with up to two decimals.",

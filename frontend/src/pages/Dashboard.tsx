@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   Plus,
@@ -14,22 +14,17 @@ import {
 import { useApp } from "../app/Provider";
 import { Empty, PageHeader, Panel } from "../components/ui";
 import { OrderTable } from "../components/orders/OrderTable";
-import {
-  SalesChart,
-  Donut,
-} from "../components/reports/Charts";
-import { metrics, orderTotal, paymentAmount } from "../utils/calculations";
+import { SchoolOverview } from "../components/reports/SchoolOverview";
+import { metrics, orderTotal } from "../utils/calculations";
 import {
   money,
   number,
   dateTime,
   date,
-  dayKey,
   today,
 } from "../utils/format";
 export default function Dashboard() {
   const { data, user } = useApp();
-  const [period, setPeriod] = useState("all");
   const personal = user?.role !== "Super Admin";
   const orders = useMemo(
     () => data.orders.filter((o) => !personal || o.createdBy === user?.id),
@@ -37,31 +32,13 @@ export default function Dashboard() {
   );
   const m = metrics(orders, data.payments);
   const confirmed = orders.filter((o) => o.status !== "Draft");
-  const chartOrders =
-    period === "all"
-      ? confirmed
-      : confirmed.filter(
-          (o) =>
-            dayKey(o.createdAt) >=
-            dayKey(
-              new Date(
-                new Date(`${today()}T12:00:00+05:30`).getTime() - 6 * 86400000,
-              ).toISOString(),
-            ),
-        );
-  const paymentIds = new Set(confirmed.map((o) => o.id));
-  const payments = data.payments.filter((p) => paymentIds.has(p.orderId));
-  const cash = payments
-    .filter((p) => p.method === "Cash")
-    .reduce((s, p) => s + paymentAmount(p), 0);
-  const online = m.collected - cash;
   const logs = data.logs
     .filter((l) => !personal || l.userId === user?.id)
     .slice(0, 4);
   const stats = [
     {
       title: "Total orders",
-      value: number(m.count),
+      value: number(orders.length),
       icon: ShoppingBag,
       note: `${orders.filter((o) => o.status === "Draft").length} draft orders`,
       tone: "maroon",
@@ -148,57 +125,14 @@ export default function Dashboard() {
             <PackageCheck size={18} />
           </span>
           <span>
-            Ready for collection <strong>{confirmed.filter((o) => o.status === "Ready").length}</strong>
+            Awaiting collection <strong>{confirmed.filter((o) => o.status !== "Collected").length}</strong>
           </span>
-          <Link to="/orders?status=Ready">
-            View ready orders <ArrowRight size={14} />
+          <Link to="/orders?status=Confirmed">
+            View pending collections <ArrowRight size={14} />
           </Link>
         </div>
       </div>
-      {confirmed.length > 0 && <div className="dashboard-charts">
-        <Panel
-          title="Sales overview"
-          description="Confirmed order value by date."
-          actions={
-            <select
-              aria-label="Sales chart period"
-              className="small-select"
-              value={period}
-              onChange={(e) => setPeriod(e.target.value)}
-            >
-              <option value="all">This season</option>
-              <option value="7">Last 7 days</option>
-            </select>
-          }
-        >
-          <div className="chart-total">
-            <strong>
-              {money(chartOrders.reduce((s, o) => s + orderTotal(o), 0))}
-            </strong>
-            <span>
-              <span className="legend-dot" /> Total sales
-            </span>
-          </div>
-          <SalesChart orders={chartOrders} />
-        </Panel>
-        <Panel
-          title="Payment summary"
-          description="Received payments by method."
-        >
-          <Donut
-            data={[
-              { name: "Cash", value: cash },
-              { name: "Online", value: online },
-            ]}
-            center={money(m.collected)}
-            caption="COLLECTED"
-          />
-          <div className="payment-pending">
-            <span>Outstanding balance</span>
-            <strong>{money(m.pending)}</strong>
-          </div>
-        </Panel>
-      </div>}
+      <SchoolOverview />
       <Panel
         title={personal ? "Your recent orders" : "Recent orders"}
         description="The latest entries from your order desk."

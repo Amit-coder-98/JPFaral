@@ -1,5 +1,17 @@
 ﻿# Implementation and verification
 
+## Product checklist, collection checkout and school standings — 16 October 2026
+
+Release follow-up: the operator applied the checkout migration. A subsequent read-only `supabase migration list --linked` confirms all eight local versions, including `202610160001`, have matching remote versions. Preparing the tested source update for GitHub publication; frontend deployment and hosted behavior require separate verification.
+
+Order entry now uses a searchable product checklist with disabled quantity fields for unchecked products. Selected quantities are kg-only, validated in 0.25 kg increments, with the existing per-250g rate display and historical price snapshots. The visible collection action accepts the remaining Cash/Online payment and completes handover atomically; fully prepaid orders create no additional receipt. Draft → Confirmed → Collected replaces the Ready step. Historical Ready snapshots remain unchanged and appear as Confirmed in operational views.
+
+Dashboard charts are replaced by paginated, exportable class/division counts and student sales standings. The operator confirmed that gift ranks use total non-draft, non-deleted sales value; equal values share a rank. A separate active Orders list number starts at 1, while permanent printed receipts retain their unique numbers after deletion. Payments, test archives, authorization and audit protections remain intact.
+
+The linked migration history confirms all seven earlier migrations are applied. Their contents are unchanged. New forward-only `202610160001_collection_checkout.sql` adds a private immutable retry table, authenticated atomic checkout, full-payment collection checks and a trigger preventing new Ready transitions. A linked dry run lists only this new migration. It has not been applied; no production business records, invitation emails, Git pushes or frontend deployments were performed for this update. Coordinate the database and frontend release using [ORDER_WORKFLOW_UPDATE.md](ORDER_WORKFLOW_UPDATE.md).
+
+Verification passed: **62 backend tests, 119 frontend unit tests, 44 browser workflows, eight simulated Supabase browser checks and the production build**. After the final collection-button placement change, seven affected checkout/mobile browser checks and the production build passed again. PostgreSQL cases exercise concurrent receipts/collections, rollback, retry consistency, immutable history, authorization, legacy upgrades and migration replay. Phone/tablet checks cover checkbox quantities and collection payment controls. These local checks do not establish hosted deployment.
+
 ## Cloudflare clean-install lockfile repair — 14 October 2026
 
 The hosted build correctly selected the frontend folder, then failed during `npm clean-install` because the prior Windows-generated lock omitted `@emnapi/runtime` and bundled WASM `@emnapi/core` metadata. Reproduced the exact missing-dependency error using the reported Cloudflare npm 10.9.2 with a Linux target. Regenerated the lock in an isolated folder without existing dependencies using npm 10.9.2. Existing application dependency versions are unchanged; the repaired lock records the root runtime and the bundled core/runtime entries.

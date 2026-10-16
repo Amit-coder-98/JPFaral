@@ -10,10 +10,11 @@ import type {
   StaffUser,
   Student,
   PaymentInput,
+  CollectionInput,
 } from "../types";
-import { nextOrderNumber, orderTotal } from "../utils/calculations";
+import { balance, nextOrderNumber, orderTotal } from "../utils/calculations";
 import { now } from "../utils/format";
-import { rateMoney } from "../utils/pricing";
+import { moneyInPaise, rateMoney } from "../utils/pricing";
 import { orderSchema, quantitySchema } from "./validation";
 import type { FrontendRepository } from "./contracts";
 export class MockRepository implements FrontendRepository {
@@ -21,12 +22,13 @@ export class MockRepository implements FrontendRepository {
   private state: AppState;
   private listeners = new Set<() => void>();
   private deletionRequests = new Map<string, string>();
+  private collectionRequests = new Map<string, string>();
   constructor(initial = seedData()) {
     this.state = initial;
   }
   getSnapshot = () => this.state;
   refresh = async () => {};
-  reset = () => { this.deletionRequests.clear(); this.commit(seedData()); };
+  reset = () => { this.deletionRequests.clear(); this.collectionRequests.clear(); this.commit(seedData()); };
   saveProfile(name: string, email: string, actor: string) {
     const profile = this.state.staff.find((s) => s.id === actor);
     if (!profile) throw new Error("Account not found");
@@ -37,9 +39,7 @@ export class MockRepository implements FrontendRepository {
     if (!order || order.status === "Draft")
       throw new Error("Select a confirmed order.");
     if (
-      !Number.isFinite(input.amount) ||
-      input.amount <= 0 ||
-      input.amount * 100 !== Math.round(input.amount * 100)
+      moneyInPaise(input.amount) === null || input.amount <= 0
     )
       throw new Error("Enter a positive amount with up to two decimals.");
     if (input.method === "Online" && !input.utr.trim())
@@ -50,7 +50,7 @@ export class MockRepository implements FrontendRepository {
       this.state.staff.find((s) => s.id === actor)?.role !== "Super Admin"
     )
       throw new Error("Refunds require an administrator.");
-    const received = order.advance + (refund ? -input.amount : input.amount);
+    const received = (Math.round(order.advance * 100) + (refund ? -1 : 1) * moneyInPaise(input.amount)!) / 100;
     if (received < 0 || received > orderTotal(order))
       throw new Error("Payment exceeds the balance or refundable amount.");
     if (this.state.payments.some((p) => p.id === input.requestId)) return;
@@ -232,6 +232,9 @@ export class MockRepository implements FrontendRepository {
   setOrderStatus(id: string, status: OrderStatus, actor: string) {
     const order = this.state.orders.find((o) => o.id === id);
     if (!order) throw new Error("Order not found");
+    if (!this.state.staff.some(user => user.id === actor && user.active)) throw new Error("An active authorized account is required.");
+    if (status !== "Collected" || !["Confirmed", "Ready"].includes(order.status)) throw new Error("Invalid collection status transition.");
+    if (balance(order) !== 0) throw new Error("Receive the outstanding balance before collection.");
     this.commit(
       this.log(
         {
@@ -250,6 +253,31 @@ export class MockRepository implements FrontendRepository {
         [{ field: "Status", before: order.status, after: status }],
       ),
     );
+  }
+  collectOrder(input: CollectionInput, actor: string) {
+    if (!this.state.staff.some(user => user.id === actor && user.active)) throw new Error("An active authorized account is required.");
+    const signature = JSON.stringify({ ...input, utr: input.method === "Cash" ? "" : input.utr.trim(), actor });
+    const order = this.state.orders.find(item => item.id === input.orderId);
+    if (!order) throw new Error("Order not found or deleted.");
+    const previous = this.collectionRequests.get(input.requestId);
+    if (previous) { if (previous !== signature) throw new Error("Collection request ID has already been used."); return; }
+    if ((order.version ?? 1) !== input.version) throw new Error("This order changed. Refresh before collection.");
+    if (!["Confirmed", "Ready"].includes(order.status)) throw new Error("Only confirmed orders can be collected.");
+    const due = Math.round((orderTotal(order) - order.advance) * 100) / 100;
+    if (moneyInPaise(input.amount) === null || moneyInPaise(input.amount) !== moneyInPaise(due))
+      throw new Error("Receive the exact outstanding balance before collection.");
+    if (!["Cash", "Online"].includes(input.method) || (input.amount > 0 && input.method === "Online" && !input.utr.trim()) || input.utr.length > 120)
+      throw new Error("UTR is required for online collection payments.");
+    if (this.state.payments.some(payment => payment.id === input.requestId || (input.amount > 0 && input.method === "Online" && payment.method === "Online" && payment.kind !== "refund" && payment.utr.trim().toLowerCase() === input.utr.trim().toLowerCase())))
+      throw new Error("Payment reference or request ID has already been used.");
+    const timestamp = now();
+    let state = { ...this.state, orders: this.state.orders.map(item => item.id === order.id
+      ? { ...item, status: "Collected" as const, advance: orderTotal(order), version: input.version + (input.amount > 0 ? 2 : 1), editedAt: timestamp, editedBy: actor,
+        ...(input.amount > 0 ? { paymentMethod: input.method, utr: input.method === "Cash" ? "" : input.utr.trim() } : {}) } : item) };
+    if (input.amount > 0) state = this.log({ ...state, payments: [...state.payments, { id: input.requestId, orderId: order.id,
+      amount: input.amount, method: input.method, utr: input.method === "Cash" ? "" : input.utr.trim(), kind: "receipt", receivedBy: actor, date: timestamp }] }, actor, "Created", "Payment", order.number, `Recorded collection receipt for ${order.number}`);
+    this.collectionRequests.set(input.requestId, signature);
+    this.commit(this.log(state, actor, "Updated", "Order", order.number, "Collected order and settled payment", [{ field: "Status", before: order.status, after: "Collected" }]));
   }
   deleteOrders(input: OrderDeletionInput, actor: string) {
     validateOrderDeletion(input);

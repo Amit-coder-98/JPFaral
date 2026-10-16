@@ -4,6 +4,7 @@ import type {
   OrderInput,
   OrderStatus,
   PaymentInput,
+  CollectionInput,
   Product,
   Settings,
   StaffUser,
@@ -36,5 +37,6 @@ export interface FrontendRepository {
   saveSettings(settings: Settings, actor: string): Result<void>;
   setOrderStatus(id: string, status: OrderStatus, actor: string): Result<void>;
   recordPayment(input: PaymentInput, actor: string): Result<void>;
+  collectOrder(input: CollectionInput, actor: string): Result<void>;
   deleteOrders(input: OrderDeletionInput, actor: string): Result<void>;
 }

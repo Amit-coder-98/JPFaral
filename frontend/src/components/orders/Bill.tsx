@@ -95,7 +95,7 @@ export function Bill({ order }: { order: Order }) {
           </div>
           <div>
             <span>
-              {order.deletionTestData ? "Recorded test payments" : isMock ? "Advance received" : "Total received, net of refunds"}
+              {order.deletionTestData ? "Recorded test payments" : "Total received, net of refunds"}
             </span>
             <strong>{money(order.advance)}</strong>
           </div>

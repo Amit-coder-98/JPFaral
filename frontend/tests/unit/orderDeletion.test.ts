@@ -5,6 +5,11 @@ import { ledgerPayments, metrics } from "../../src/utils/calculations";
 import { orderDeletionBlock, validateOrderDeletion } from "../../src/utils/orderDeletion";
 import type { Order, OrderInput } from "../../src/types";
 
+// Legacy snapshots may be collected with outstanding balances before the checkout migration.
+function legacyStatus(repo: MockRepository, id: string, status: Order["status"]) {
+ const order=repo.getSnapshot().orders.find(order=>order.id===id)!;
+ Object.assign(order,{status,version:(order.version ?? 1)+1});
+}
 function fixture() {
   const initial = seedData();
   return new MockRepository({ ...initial, orders: [], payments: [], logs: [], deletedOrders: [] });
@@ -49,9 +54,9 @@ describe("reviewed order deletion", () => {
     expect(() => repo.deleteOrders(request([good, paid]), "u1")).toThrow("Refund");
     expect(repo.getSnapshot().orders).toHaveLength(2);
     const stale = request([good]);
-    repo.setOrderStatus(good.id, "Ready", "u1");
+    legacyStatus(repo, good.id, "Ready");
     expect(() => repo.deleteOrders(stale, "u1")).toThrow("changed");
-    repo.setOrderStatus(good.id, "Collected", "u1");
+    legacyStatus(repo, good.id, "Collected");
     expect(orderDeletionBlock(repo.getSnapshot().orders.find((order) => order.id === good.id)!)).toContain("Collected");
   });
   it("keeps every receipt and refund after a fully refunded test order is removed", () => {
@@ -67,7 +72,7 @@ describe("reviewed order deletion", () => {
   it("requires explicit admin confirmation for collected tests and records the override", () => {
     const repo = fixture();
     const order = repo.saveOrder(input(), "u1");
-    repo.setOrderStatus(order.id, "Collected", "u1");
+    legacyStatus(repo, order.id, "Collected");
     const batch = request(repo.getSnapshot().orders);
     expect(() => repo.deleteOrders(batch, "u1")).toThrow("confirmation");
     expect(() => repo.deleteOrders({...batch,allowCollected:true}, "u2")).toThrow("Super Admin");
@@ -79,7 +84,7 @@ describe("reviewed order deletion", () => {
   it("collected confirmation does not waive the received-payment rule", () => {
     const repo = fixture();
     const order = repo.saveOrder(input(10), "u1");
-    repo.setOrderStatus(order.id, "Collected", "u1");
+    legacyStatus(repo, order.id, "Collected");
     expect(() => repo.deleteOrders({...request(repo.getSnapshot().orders),allowCollected:true}, "u1")).toThrow("Refund");
     expect(repo.getSnapshot().orders).toHaveLength(1);
   });
@@ -87,7 +92,7 @@ describe("reviewed order deletion", () => {
     const repo = fixture();
     const test = repo.saveOrder(input(100), "u1");
     const real = repo.saveOrder(input(10), "u1");
-    repo.setOrderStatus(test.id, "Collected", "u1");
+    legacyStatus(repo, test.id, "Collected");
     const order = repo.getSnapshot().orders.find(o => o.id === test.id)!;
     const payments = structuredClone(repo.getSnapshot().payments);
     const batch = {...request([order]), testCleanup:true};

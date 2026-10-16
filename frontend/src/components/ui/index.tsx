@@ -53,6 +53,7 @@ export function Badge({
   children: ReactNode;
   tone?: string;
 }) {
+  if (children === "Ready") children = "Confirmed";
   return (
     <span
       className={`badge ${tone ?? String(children).toLowerCase().replaceAll(" ", "-")}`}

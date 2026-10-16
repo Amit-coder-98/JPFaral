@@ -240,6 +240,30 @@
 }
 
 /* Short landscape screens keep drawer links and dialog actions scrollable. */
+@media print { .order-payment-history { display: none !important; } }
+.catalogue-selection-tools, .school-summary-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.catalogue-selection-tools { justify-content: space-between; margin-bottom: 14px; }
+.catalogue-selection-tools input { max-width: 340px; min-width: 0; }
+.catalogue-selection-tools > span { color: var(--muted); font-size: 12px; }
+.product-checklist { max-height: 480px; overflow: auto; overscroll-behavior: contain; border: 1px solid var(--border); border-radius: 10px; }
+.product-checklist thead { position: sticky; top: 0; z-index: 1; background: var(--surface, #fffdfb); }
+.product-checkbox-label { display: flex; align-items: center; gap: 12px; min-height: 44px; cursor: pointer; white-space: normal; }
+.product-checkbox-label input { width: 20px; height: 20px; flex: 0 0 20px; accent-color: var(--maroon, #713b48); }
+.product-checkbox-label small { display: block; }
+.product-checklist .item-selected { background: #faf5f0; }
+.product-checklist .item-unselected .quantity-input { opacity: .55; }
+.product-checklist .quantity-input { flex-direction: row; align-items: center; }
+.quantity-unit { flex: 0 0 auto; font-size: 13px; color: var(--muted); padding-inline: 4px; }
+.school-overview { display: grid; gap: 24px; margin-bottom: 24px; }
+.school-summary-actions select { min-height: 42px; width: auto; max-width: 100%; }
+.collection-payment-summary { margin-bottom: 20px; }
+@media screen and (max-width: 640px) {
+  .catalogue-selection-tools input { width: 100%; max-width: none; }
+  .product-checklist { padding: 10px; max-height: 520px; }
+  .product-checklist .item-unselected { gap: 6px; }
+  .school-summary-actions { width: 100%; }
+  .school-summary-actions select, .school-summary-actions .button { flex: 1 1 160px; }
+}
 @media screen and (max-height: 600px) {
   .sidebar .season-note, .sidebar .workspace-chip { display: none; }
   .sidebar-bottom { padding-top: 12px; }

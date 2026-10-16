@@ -1,3 +1,4 @@
+import { selectProduct, productQuantity, productRow } from "./helpers/orderProducts";
 import { expect, test, type Page } from "@playwright/test";
 
 const devices = [
@@ -52,25 +53,24 @@ for (const device of devices) {
         await checkViewport(page, `${device.width} ${route}`);
       }
       await page.goto("/orders/new");
-      await page.getByLabel("Order item 1", { exact: true }).selectOption("p1");
-      await page.getByLabel("Quantity unit for item 1", { exact: true }).selectOption("g");
-      await page.getByLabel("Quantity for item 1", { exact: true }).fill("9999750");
+      await selectProduct(page, "p1");
+      await productQuantity(page, "p1").fill("9999.75");
       await expect(page.locator(".item-subtotal")).toContainText("₹43,99,890.00");
       await checkViewport(page, `${device.width} large gram quantity`);
-      await page.getByLabel("Quantity for item 1", { exact: true }).fill("300");
+      await productQuantity(page, "p1").fill("0.3");
       await expect(page.locator("#quantity-error-0")).toContainText("250 ग्रॅम");
       await checkViewport(page, `${device.width} quantity error`);
-      await page.getByLabel("Quantity for item 1", { exact: true }).fill("750");
-      const quantityBounds = await page.getByLabel("Quantity for item 1", {exact:true}).boundingBox();
+      await productQuantity(page, "p1").fill("0.75");
+      const quantityBounds = await productQuantity(page, "p1").boundingBox();
       expect(quantityBounds!.width, "quantity digits must have space beside the unit selector").toBeGreaterThanOrEqual(90);
       await expect(page.locator(".item-subtotal")).toContainText("₹330.00");
       if (device.width <= 640) {
         await expect(page.locator(".order-items tbody tr").first()).toHaveCSS("display", "grid");
-        const product = await page.getByLabel("Order item 1", {exact:true}).boundingBox();
+        const product = await productRow(page,"p1").locator(".product-checkbox-label").boundingBox();
         expect(product!.width).toBeGreaterThan(150);
       }
       if (device.width <= 1024) {
-        await expect(page.getByLabel("Quantity for item 1", {exact:true})).toHaveCSS("font-size","16px");
+        await expect(productQuantity(page, "p1")).toHaveCSS("font-size","16px");
         await page.getByRole("button", {name:"Open navigation",exact:true}).click();
         const drawer = page.getByRole("dialog", {name:"Workspace navigation",exact:true});
         await expect(drawer).toBeVisible();

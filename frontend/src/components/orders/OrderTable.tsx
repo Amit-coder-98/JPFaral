@@ -3,8 +3,9 @@ import { ArrowUpRight, Pencil, Trash2 } from "lucide-react";
 import { useApp } from "../../app/Provider";
 import { Badge, DataTable, type Column } from "../ui";
 import type { Order } from "../../types";
-import { balance, orderTotal } from "../../utils/calculations";
+import { activeOrderSerials, balance, orderTotal } from "../../utils/calculations";
 import { date, money } from "../../utils/format";
+import { orderStatusLabel } from "../../utils/orderStatus";
 export function OrderTable({
   orders,
   compact = false,
@@ -19,14 +20,17 @@ export function OrderTable({
   onDelete?: (order: Order) => void;
 }) {
   const { data } = useApp();
+  const serials = activeOrderSerials(orders);
   const student = (o: Order) =>
     o.studentSnapshot ?? data.students.find((s) => s.id === o.studentId);
   const staff = (id: string) =>
     data.staff.find((s) => s.id === id)?.name ?? "—";
   const columns: Column<Order>[] = [
+    ...(!compact ? [{ key: "serial", label: "No.", value: (order: Order) => serials.get(order.id) ?? 0,
+      render: (order: Order) => serials.get(order.id) ?? "—" }] : []),
     {
       key: "number",
-      label: "Order no.",
+      label: "Receipt no.",
       value: (o) => o.number,
       render: (o) => (
         <Link className="order-link" to={`/orders/${o.id}`}>
@@ -81,7 +85,7 @@ export function OrderTable({
       ? [
           {
             key: "advance",
-            label: "Advance paid",
+            label: "Total received",
             value: (o: Order) => o.advance,
             render: (o: Order) => money(o.advance),
           },
@@ -106,7 +110,7 @@ export function OrderTable({
     {
       key: "status",
       label: "Status",
-      value: (o) => o.status,
+      value: (o) => orderStatusLabel(o.status),
       render: (o) => <Badge>{o.status}</Badge>,
     },
     ...(!compact
@@ -128,7 +132,7 @@ export function OrderTable({
       label: "",
       render: (o) => (
         <div className="table-actions">
-          {!compact && (
+          {!compact && o.status !== "Collected" && (
             <Link
               className="icon-button"
               to={`/orders/${o.id}/edit`}

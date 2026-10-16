@@ -80,6 +80,14 @@ export interface PaymentInput {
   kind: "receipt" | "refund";
   requestId: string;
 }
+export interface CollectionInput {
+  orderId: string;
+  version: number;
+  amount: number;
+  method: "Cash" | "Online";
+  utr: string;
+  requestId: string;
+}
 export interface AuditChange {
   field: string;
   before: string;

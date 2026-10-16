@@ -1,3 +1,4 @@
+import { selectProduct, productQuantity, collectOrder } from "./helpers/orderProducts";
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 
@@ -9,8 +10,8 @@ async function create(page: Page, name: string, advance = 0, draft = false) {
   await page.getByRole("combobox", { name: "Search student" }).fill("Aarav");
   await page.getByRole("listbox").getByRole("option").first().click();
   await page.getByLabel("Customer name", { exact: false }).fill(name);
-  await page.getByLabel("Order item 1", { exact: true }).selectOption("p1");
-  await page.getByLabel("Quantity for item 1", { exact: true }).fill("0.25");
+  await selectProduct(page, "p1");
+  await productQuantity(page, "p1").fill("0.25");
   await page.getByLabel("Advance amount (optional)", { exact: true }).fill(String(advance));
   await page.getByRole("button", { name: draft ? "Save draft" : "Save order", exact: true }).last().click();
   await page.getByRole("button", { name: "View order", exact: true }).click();
@@ -121,9 +122,12 @@ test("paid collected orders keep the refund rule and staff do not receive deleti
 
 test("collected test orders can be deleted after an explicit reason and admin acknowledgement", async ({ page }) => {
   const order = await create(page,"Collected test cleanup");
-  await page.getByRole("button",{name:"Mark ready for collection",exact:true}).click();
-  await page.getByRole("button",{name:"Mark as collected",exact:true}).click();
-  await page.getByRole("button",{name:"Confirm collected",exact:true}).click();
+  await collectOrder(page);
+  await page.getByRole("button",{name:"Record payment",exact:true}).click();
+  await page.getByLabel("Transaction type").selectOption("refund");
+  await page.getByLabel("Payment amount",{exact:false}).fill("110");
+  await page.getByRole("button",{name:"Save transaction",exact:true}).click();
+
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.setViewportSize({width:390,height:844});
   await page.getByRole("link",{name:"Orders",exact:true}).click();
@@ -162,9 +166,7 @@ test("phone deletion dialog and selectors remain inside the viewport", async ({ 
 
 test("paid collected test orders allow bulk checkbox cleanup and keep separately labelled test payment history",async({page})=>{
   const order=await create(page,"Paid collected test cleanup",110);
-  await page.getByRole("button",{name:"Mark ready for collection",exact:true}).click();
-  await page.getByRole("button",{name:"Mark as collected",exact:true}).click();
-  await page.getByRole("button",{name:"Confirm collected",exact:true}).click();
+  await collectOrder(page);
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.setViewportSize({width:390,height:844});
   await page.getByRole("link",{name:"Orders",exact:true}).click();

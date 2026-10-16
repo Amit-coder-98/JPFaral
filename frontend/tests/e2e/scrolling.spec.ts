@@ -1,3 +1,4 @@
+import { productQuantity } from "./helpers/orderProducts";
 import { expect, test } from "@playwright/test";
 
 const lists = ["/students", "/orders", "/payments", "/staff", "/activity"];
@@ -87,7 +88,7 @@ for (const width of [390, 1440]) {
 
 test("opening another page resets the previous page's scroll position", async ({ page }) => {
   await page.goto("/orders/new");
-  await expect(page.getByLabel("Quantity for item 1", { exact: true })).toBeVisible();
+  await expect(productQuantity(page, "p1")).toBeVisible();
   await expect(page.locator(".page-skeleton")).toHaveCount(0);
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
