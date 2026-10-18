@@ -240,6 +240,44 @@
 }
 
 /* Short landscape screens keep drawer links and dialog actions scrollable. */
+.inventory-filters { padding: 20px; margin-bottom: 24px; }
+.inventory-filter-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; }
+.inventory-shortcuts { display: flex; flex-wrap: wrap; gap: 8px; }
+.inventory-filter-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.inventory-filter-grid > * { min-width: 0; }
+.inventory-filter-grid .field { margin-bottom: 0; }
+.inventory-product-search { flex: 1 1 260px; max-width: 360px; min-width: 0; }
+.inventory-product-search .search-input { width: 100%; max-width: none; }
+.inventory-context, .inventory-guidance { color: var(--muted); font-size: 12px; line-height: 1.65; }
+.inventory-context { margin: 16px 0 0; }
+.inventory-guidance { padding: 0 24px 16px; margin: 0; }
+.inventory-required { color: var(--maroon); font-size: 17px; }
+.inventory-quantity-breakdown { display: block; max-width: 300px; white-space: normal; line-height: 1.7; }
+.inventory-order-link { min-height: 44px; white-space: nowrap; }
+.inventory-screen .info-box { margin-bottom: 20px; }
+.inventory-screen .info-box ul { padding-left: 20px; }
+@media screen and (max-width: 768px) {
+  .inventory-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .inventory-shortcuts .button { flex: 1 1 150px; }
+  .inventory-product-search { max-width: none; }
+  .inventory-guidance { padding-inline: 16px; }
+}
+@media screen and (max-width: 380px) {
+  .inventory-filter-grid { grid-template-columns: minmax(0, 1fr); }
+  .inventory-filters { padding: 16px; }
+}
+@media print {
+  .inventory-screen { display: none !important; }
+  .cooking-print { font-size: 11px; color: #222; }
+  .cooking-print header { padding-bottom: 16px; border-bottom: 1px solid #ddd; margin-bottom: 16px; }
+  .cooking-print h1 { font-size: 25px; }
+  .cooking-print h2 { font-size: 15px; margin-top: 10px; }
+  .cooking-print p { margin: 8px 0; }
+  .cooking-print thead { display: table-header-group; }
+  .cooking-print tr { break-inside: avoid; }
+  .cooking-print .data-table th, .cooking-print .data-table td { padding: 10px 8px; }
+  .cooking-print-total { padding-top: 16px; border-top: 1px solid #ddd; break-inside: avoid; }
+}
 @media print { .order-payment-history { display: none !important; } }
 .catalogue-selection-tools, .school-summary-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .catalogue-selection-tools { justify-content: space-between; margin-bottom: 14px; }

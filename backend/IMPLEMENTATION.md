@@ -1,5 +1,13 @@
 ﻿# Implementation and verification
 
+## Order-based inventory and cooking plan — 18 October 2026
+
+Added the authenticated `/inventory` page and **Inventory & Cooking** navigation for active administrators and staff. The read-only planner aggregates shared confirmed/legacy Ready/collected orders in exact integer quarter-kg units, grouping by product identity and retaining Marathi names and inactive/historical demand. Today’s orders is the default; Due today, Due tomorrow, inclusive order/collection date ranges, category and product filters support fresh production planning. Drafts and deleted orders are excluded. Ordered, awaiting-collection and collected kg remain distinct; no prepared-stock balance or recipe buffer is invented.
+
+Product order breakdowns link to permanent receipt record UUIDs. Kitchen CSV and print/PDF sheets include every filtered pending product across pagination, with date context and pending order-size counts, while omitting customer/student identities, phones, prices and payments. Invalid dates or source quantities disable sharing, including a direct browser print of an incomplete plan. The compact filters and summary retain the established UI. No schema, RPC, RLS, financial operation, historical snapshot or migration changed; existing **Refresh records** loads other staff's new orders before planning.
+
+Verification passed: **72 backend tests, 131 frontend unit tests, 22 inventory/responsive/scrolling browser checks, eight simulated Supabase browser checks and the production build**. The client’s ten-order example verifies 10 kg laddu and 20 kg barik shev. New cases cover quarter/large sums, distinct order counts, status/deletion rules, Indian midnight and collection dates, inactive products, reused receipts, filtering and complete kitchen exports without private data. Browser checks include a saved/collected order workflow, phone layout, one-page small cook-sheet PDF and all 26 products across table pages. After the final print guard and singular/plural wording change, the three inventory browser cases and production build passed again. See [the cooking-plan guide](../frontend/COOKING_PLAN.md).
+
 ## Reusable customer receipt numbers — 16 October 2026
 
 Release follow-up: the operator applied `202610160002_reusable_receipt_numbers.sql`. A read-only linked migration-history query confirms all nine versions have matching remote entries. The tested frontend is prepared in commit `3dcb977` for publication through the connected GitHub/Cloudflare build. The implementation-time pending status below records the state before the operator applied the migration.

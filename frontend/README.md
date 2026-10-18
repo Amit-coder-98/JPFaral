@@ -1,5 +1,7 @@
 # JPfaral frontend
 
+**18 October 2026:** [Inventory & Cooking](COOKING_PLAN.md) totals product demand by order or collection dates, with separate collected quantities, receipt breakdowns and kitchen print/CSV sheets. It is read-only and needs no database migration.
+
 For the 16 October checkbox catalogue, collection payments, class summaries and student leaderboard, follow [the coordinated database/frontend release instructions](../backend/ORDER_WORKFLOW_UPDATE.md).
 
 For the later request to reuse deleted receipt numbers, follow [the additional migration and release instructions](../backend/RECEIPT_NUMBERING.md). The operator applied `202610160002_reusable_receipt_numbers.sql`; all nine migrations are verified applied to the linked project. Other environments must apply it before publishing this matching frontend.
@@ -61,6 +63,7 @@ npm run preview
 - `src/utils/quantity.ts`, `src/components/orders/QuantityInput.tsx`: decimal-safe editable quantity entry in kg.
 - `src/components/orders/ProductChecklist.tsx`, `CollectionDialog.tsx`: checkbox product selection and atomic final-payment/collection checkout.
 - `src/utils/schoolSummary.ts`, `src/components/reports/SchoolOverview.tsx`: division totals and sales-ranked student standings.
+- `src/pages/Inventory.tsx`, `src/utils/cookingPlan.ts`: exact quarter-kg cooking requirements and complete kitchen exports from shared confirmed orders.
 - `src/styles/responsive.css`: shared containment, desktop/tablet/phone breakpoints, touch controls and landscape layouts; loaded after the existing design stylesheet.
 - `src/data/mock.ts`, `src/services/mockRepository.ts`: explicit development fixtures only.
 - `src/pages/`: the existing dashboards, students, catalog, orders, payment ledger, staff, reports, settings, and activity.

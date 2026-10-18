@@ -218,6 +218,10 @@ test("staff navigation and route guards deny administrative screens", async ({
   await expect(
     page.getByRole("button", { name: "Import students", exact: true }),
   ).toHaveCount(0);
+  await page.getByRole("link", { name: "Inventory & Cooking", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Inventory & cooking plan", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Print cook sheet", exact: true })).toBeDisabled();
+  await expect(page.getByText("No confirmed orders for these filters", { exact: true })).toBeVisible();
 });
 test("deactivation clears an already-open workspace on refresh", async ({
   page,

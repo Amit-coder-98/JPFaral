@@ -25,6 +25,7 @@ import {
   Search,
   CircleHelp,
   Bell,
+  ChefHat,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useApp } from "../../app/Provider";
@@ -35,6 +36,7 @@ const common = [
   { to: "/dashboard", title: "Dashboard", icon: LayoutDashboard },
   { to: "/orders/new", title: "Create Order", icon: Plus },
   { to: "/orders", title: "All Orders", icon: ShoppingBag },
+  { to: "/inventory", title: "Inventory & Cooking", icon: ChefHat },
   { to: "/students", title: "Students", icon: Users },
 ];
 const admin = [

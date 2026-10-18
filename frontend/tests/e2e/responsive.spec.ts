@@ -14,7 +14,7 @@ const devices = [
   { width: 2560, height: 1440 },
 ];
 const routes = [
-  "/dashboard", "/orders/new", "/orders", "/students", "/products",
+  "/dashboard", "/orders/new", "/orders", "/inventory", "/students", "/products",
   "/staff", "/payments", "/reports", "/activity", "/settings",
   "/orders/o1", "/orders/o1/edit",
 ];

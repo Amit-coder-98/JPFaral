@@ -14,6 +14,7 @@ const Dashboard = lazy(() => import("../pages/Dashboard"));
 const Login = lazy(() => import("../pages/Login"));
 const CreateOrder = lazy(() => import("../pages/CreateOrder"));
 const Orders = lazy(() => import("../pages/Orders"));
+const Inventory = lazy(() => import("../pages/Inventory"));
 const OrderDetails = lazy(() => import("../pages/OrderDetails"));
 const Students = lazy(() => import("../pages/Students"));
 const Products = lazy(() => import("../pages/Products"));
@@ -127,6 +128,7 @@ export default function App() {
               element={<CreateOrder key={`create-${location.search}`} />}
             />
             <Route path="/orders" element={<Orders key={location.search} />} />
+            <Route path="/inventory" element={<Inventory />} />
             <Route path="/orders/:id" element={<OrderDetails />} />
             <Route
               path="/orders/:id/edit"
