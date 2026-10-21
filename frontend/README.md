@@ -1,5 +1,7 @@
 # JPfaral frontend
 
+**21 October 2026:** To record a forgotten advance, open the same order → **Edit order** → **Add advance / payment**. Enter only the additional amount received. The receipt number stays the same, the balance updates and previous payment records remain intact. If other order details changed, **Save changes & add payment** saves those edits first. This fix needs no new database migration. See the [order/payment workflow](../backend/ORDER_WORKFLOW_UPDATE.md).
+
 **18 October 2026:** [Inventory & Cooking](COOKING_PLAN.md) totals product demand by order or collection dates, with separate collected quantities, receipt breakdowns and kitchen print/CSV sheets. It is read-only and needs no database migration.
 
 For the 16 October checkbox catalogue, collection payments, class summaries and student leaderboard, follow [the coordinated database/frontend release instructions](../backend/ORDER_WORKFLOW_UPDATE.md).
