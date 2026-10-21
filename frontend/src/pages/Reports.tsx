@@ -14,6 +14,7 @@ import {
 import { money, date, dayKey } from "../utils/format";
 import { downloadCSV } from "../utils/export";
 import { divisions } from "../data/reference";
+import { sortCatalogue } from "../utils/catalogue";
 export default function Reports() {
   const { data } = useApp();
   const [from, setFrom] = useState("");
@@ -58,7 +59,7 @@ export default function Reports() {
           ?.division === name,
     ).length,
   }));
-  const byProduct = data.products
+  const byProduct = sortCatalogue(data.products)
     .map((p) => ({
       name: p.name,
       value: orders.reduce(
@@ -69,8 +70,7 @@ export default function Reports() {
             .reduce((n, i) => n + lineTotal(i), 0),
         0,
       ),
-    }))
-    .sort((a, b) => b.value - a.value);
+    }));
   const byStaff = data.staff.map((s) => ({
     name: s.name.split(" ")[0],
     value: orders.filter((o) => o.createdBy === s.id).length,

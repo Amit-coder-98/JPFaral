@@ -24,7 +24,8 @@ import type { Order } from "../types";
 import { divisions } from "../data/reference";
 import { orderTotal, balance, lineTotal } from "../utils/calculations";
 import { rateMoney } from "../utils/pricing";
-import { money, dayKey } from "../utils/format";
+import { money, dayKey, today } from "../utils/format";
+import { sortCatalogue } from "../utils/catalogue";
 import { downloadCSV, downloadExcel } from "../utils/export";
 export default function Orders() {
   const { data, toast, user } = useApp();
@@ -38,10 +39,11 @@ export default function Orders() {
   const [filters, setFilters] = useState(false);
   const [standard, setStandard] = useState("");
   const [division, setDivision] = useState("");
-  const [staff, setStaff] = useState("");
+  const [staff, setStaff] = useState(params.get("staff") ?? "");
   const [method, setMethod] = useState("");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+  const [from, setFrom] = useState(params.get("from") ?? "");
+  const [to, setTo] = useState(params.get("to") ?? "");
+  const [pageSize, setPageSize] = useState<number | "all">("all");
   const rows = useMemo(
     () =>
       data.orders.filter((o) => {
@@ -126,7 +128,7 @@ export default function Orders() {
       orderStatusLabel(o.status),
       data.staff.find((s) => s.id === o.createdBy)?.name ?? "",
       data.staff.find((s) => s.id === o.editedBy)?.name ?? "",
-      o.items
+      sortCatalogue(o.items)
         .map(
           (item) =>
             `${item.name} | ${rateMoney(item.price)} / 250 ग्रॅम | ${item.quantity} kg | ${money(lineTotal(item))}`,
@@ -201,6 +203,20 @@ export default function Orders() {
       </div>
       <p className="order-numbering-note">Deleted orders are excluded from counts. Their receipt numbers become available for new orders.</p>
       <Panel>
+        <div className="order-day-toolbar">
+          <Field label="Orders on day">
+            <input type="date" value={from === to ? from : ""} onChange={event => { setFrom(event.target.value); setTo(event.target.value); }} />
+          </Field>
+          <Button variant="secondary" onClick={() => { setFrom(today()); setTo(today()); }}>Today’s orders</Button>
+          <Button variant="ghost" onClick={() => { setFrom(""); setTo(""); }}>All dates</Button>
+          <Field label="Orders per page">
+            <select value={pageSize} onChange={event => setPageSize(event.target.value === "all" ? "all" : Number(event.target.value))}>
+              <option value="all">Show full list</option><option value="8">8 per page</option><option value="25">25 per page</option><option value="50">50 per page</option>
+            </select>
+          </Field>
+          <span className="muted" aria-live="polite">{pageSize === "all" ? `Showing all ${rows.length} matching ${rows.length === 1 ? "order" : "orders"}` : `${rows.length} matching ${rows.length === 1 ? "order" : "orders"}`}</span>
+        </div>
+        {from && to && from > to && <p className="field-error" role="alert">End date must be on or after the start date.</p>}
         <div className="table-toolbar">
           <SearchInput
             label="Search orders"
@@ -315,7 +331,7 @@ export default function Orders() {
             }}><Trash2 size={15} />Delete selected</Button>
           </div>
         </div>}
-        <OrderTable orders={rows} selected={admin ? selected : undefined} onSelect={admin ? select : undefined}
+        <OrderTable orders={rows} pageSize={pageSize} selected={admin ? selected : undefined} onSelect={admin ? select : undefined}
           onDelete={admin ? (order) => setDeleting([order]) : undefined} />
       </Panel>
       {deleting && <DeleteOrdersDialog orders={deleting} onClose={() => setDeleting(null)}

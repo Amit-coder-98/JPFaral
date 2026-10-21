@@ -22,7 +22,7 @@ const validOrder = {
   collectorType: "Student",
   collectorName: "Student",
 };
-function fixture(active = true, deletionUnavailable = false, collectionUnavailable = false) {
+function fixture(active = true, deletionUnavailable = false, collectionUnavailable = false, serverCap = 500) {
   const tables: Record<string, Record<string, unknown>[]> = {
     profiles: [
       {
@@ -156,9 +156,9 @@ function fixture(active = true, deletionUnavailable = false, collectionUnavailab
         JSON.stringify(
           accept?.includes("object")
             ? rows[0]
-            : rows.slice(offset, offset + limit),
+            : rows.slice(offset, offset + Math.min(limit, serverCap)),
         ),
-        { headers: { "Content-Type": "application/json" } },
+        { headers: { "Content-Type": "application/json", "Content-Range": `0-0/${rows.length}` } },
       );
     },
   );
@@ -312,6 +312,22 @@ describe("financial and import boundaries", () => {
   });
 });
 describe("Supabase adapter contract (simulated HTTP)", () => {
+  it("loads all orders, item snapshots and receipts beyond server limits, including smaller configured page caps", async () => {
+    const { repo, tables, calls } = fixture(true, false, false, 100);
+    const header = structuredClone(tables.orders[0]);
+    const item = structuredClone(tables.order_items[0]);
+    const receipt = structuredClone(tables.payments[0]);
+    tables.orders = Array.from({length:1201},(_,i)=>({...header,id:`order-${i}`,order_number:`JP-${i+1}`}));
+    tables.order_items = tables.orders.map((order,i)=>({...item,id:`item-${i}`,order_id:order.id}));
+    tables.payments = tables.orders.map((order,i)=>({...receipt,id:`payment-${i}`,order_id:order.id}));
+    await repo.refresh();
+    const state = repo.getSnapshot();
+    expect(state.orders).toHaveLength(1201);
+    expect(new Set(state.orders.map(order=>order.id)).size).toBe(1201);
+    expect(state.orders.every(order=>order.items.length===1 && order.advance===10)).toBe(true);
+    expect(state.payments).toHaveLength(1201);
+    expect(calls.some(call=>call.path.endsWith("/orders") && call.offset===1200)).toBe(true);
+  });
   it("fetches beyond one page and preserves database numbers, snapshots and the net ledger", async () => {
     const { repo, calls } = fixture();
     await repo.refresh();

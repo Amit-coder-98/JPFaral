@@ -13,6 +13,7 @@ import {
 } from "../components/ui";
 import { rateMoney, ratePer250g, pricePerKgFrom250g } from "../utils/pricing";
 import type { Product } from "../types";
+import { sortCatalogue } from "../utils/catalogue";
 export default function Products() {
   const { data, user, repository, toast } = useApp();
   const [search, setSearch] = useState("");
@@ -38,7 +39,7 @@ export default function Products() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [rate, setRate] = useState("");
-  const rows = data.products.filter(
+  const rows = sortCatalogue(data.products).filter(
     (p) =>
       p.name.toLowerCase().includes(search.toLowerCase()) &&
       (!filter ||

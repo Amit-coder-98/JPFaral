@@ -1,6 +1,7 @@
 import type { Order, Product } from "../types";
 import { dayKey } from "./format";
 import { isValidQuantity } from "./pricing";
+import { compareCatalogue } from "./catalogue";
 
 export interface CookingFilters {
   basis: "order" | "collection";
@@ -96,7 +97,7 @@ export function cookingPlan(orders: Order[], products: Product[], filters: Cooki
     return { id, name: group.name, category: group.category, orderedKg: total / 4, pendingKg: (total - collected) / 4,
       collectedKg: collected / 4, orders: contributions, pendingOrders,
       breakdown: [...sizes].sort(([a],[b]) => a-b).map(([quarters, count]) => ({ quantity: quarters / 4, orders: count })) };
-  }).sort((a,b) => b.pendingKg - a.pendingKg || a.name.localeCompare(b.name, "mr") || a.id.localeCompare(b.id));
+  }).sort((a,b) => compareCatalogue(a,b) || a.id.localeCompare(b.id));
   return { rows, issues, error, totals: { orders: included.size, pendingOrders: pending.size, orderedKg: orderedQuarters / 4,
     pendingKg: (orderedQuarters - collectedQuarters) / 4, collectedKg: collectedQuarters / 4 } };
 }

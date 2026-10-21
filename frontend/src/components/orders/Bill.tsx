@@ -5,6 +5,7 @@ import { Badge } from "../ui";
 import { date, dateTime, money } from "../../utils/format";
 import { balance, lineTotal, orderTotal } from "../../utils/calculations";
 import { rateMoney } from "../../utils/pricing";
+import { sortCatalogue } from "../../utils/catalogue";
 export function Bill({ order }: { order: Order }) {
   const { data, isMock } = useApp();
   const student =
@@ -65,7 +66,7 @@ export function Bill({ order }: { order: Order }) {
             </tr>
           </thead>
           <tbody>
-            {order.items.map((item, i) => (
+            {sortCatalogue(order.items).map((item, i) => (
               <tr key={`${item.productId}-${i}`}>
                 <td>
                   <strong>{item.name}</strong>

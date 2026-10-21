@@ -58,6 +58,7 @@ test('collecting an advance-paid order records the remaining online receipt and 
   const receipt=await page.locator('main h1').innerText();
   await page.getByRole('link',{name:'Payments',exact:true}).click();
   await page.getByLabel('Search payments').fill(receipt);
+  await page.getByRole('button',{name:'Transactions',exact:true}).click();
   await expect(page.locator('tbody tr')).toHaveCount(2);
   await expect(page.locator('tbody')).toContainText('CHECKOUT-TEST-2026');
 });
@@ -71,6 +72,7 @@ test('fully prepaid orders confirm handover without creating another receipt',as
   await expect(page.locator('.bill')).toContainText('Collected');
   await page.getByRole('link',{name:'Payments',exact:true}).click();
   await page.getByLabel('Search payments').fill(receipt);
+  await page.getByRole('button',{name:'Transactions',exact:true}).click();
   await expect(page.locator('tbody tr')).toHaveCount(1);
 });
 test('dashboard shows division counts and sales-ranked students without dashboard charts',async({page})=>{

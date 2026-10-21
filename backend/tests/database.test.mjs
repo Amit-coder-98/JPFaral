@@ -24,6 +24,7 @@ const deletionOverrideName = "202610140002_collected_order_deletion.sql";
 const testCleanupName = "202610140003_test_order_cleanup.sql";
 const collectionName = "202610160001_collection_checkout.sql";
 const receiptName = "202610160002_reusable_receipt_numbers.sql";
+const revisedRateName = "202610210001_nutritious_laddu_rate.sql";
 const collectionSql = () => fs.readFile(path.join(root, "supabase/migrations", collectionName), "utf8");
 const testCleanupSql = () => fs.readFile(path.join(root, "supabase/migrations", testCleanupName), "utf8");
 const deletionOverrideSql = () => fs.readFile(path.join(root, "supabase/migrations", deletionOverrideName), "utf8");
@@ -174,7 +175,7 @@ before(
     for (const name of (
       await fs.readdir(path.join(root, "supabase/migrations"))
     )
-      .filter((n) => n.endsWith(".sql") && n !== upgradeName && n !== deletionName && n !== deletionOverrideName && n !== testCleanupName && n !== collectionName && n !== receiptName)
+      .filter((n) => n.endsWith(".sql") && n !== upgradeName && n !== deletionName && n !== deletionOverrideName && n !== testCleanupName && n !== collectionName && n !== receiptName && n !== revisedRateName)
       .sort()) {
       try {
         await pool.query(
@@ -1308,3 +1309,31 @@ test('test cleanup migration replays without changing bills, ledger or audit his
 collectionCases({test,assert,db:()=>pool,actor:admin,staff,inactive,save,input,productId,row,pay,asUser,migration:collectionSql,cleanup:cleanupOrders,targets:deletionTargets});
 receiptNumberCases({test,assert,db:()=>pool,admin,staff,inactive,save,input,productId,row,pay,asUser,
   migration:()=>fs.readFile(path.join(root,"supabase/migrations",receiptName),"utf8"),cleanup:cleanupOrders,targets:deletionTargets});
+
+test("October 21 rate upgrade is idempotent, protects historical bills/payments and retains admin-only catalogue writes", async () => {
+  const name = "पौष्टिक लाडू (तुपातील)";
+  const product = (await pool.query("select * from public.products where name=$1", [name])).rows[0];
+  assert.equal(Number(product.price_per_kg), 600);
+  const oldId = await save(input({ items: [{ productId: product.id, price: 600, quantity: 0.25 }], advance: 10 }));
+  const before = await row(oldId);
+  const items = (await pool.query("select * from public.order_items where order_id=$1", [oldId])).rows;
+  const payments = (await pool.query("select * from public.payments order by id")).rows;
+  const sql = await fs.readFile(path.join(root,"supabase/migrations",revisedRateName),"utf8");
+  await pool.query(sql);
+  const afterProduct = (await pool.query("select * from public.products where id=$1", [product.id])).rows[0];
+  assert.equal(Number(afterProduct.price_per_kg),700);
+  assert.equal(afterProduct.active,product.active);
+  assert.deepEqual(await row(oldId),before);
+  assert.deepEqual((await pool.query("select * from public.order_items where order_id=$1",[oldId])).rows,items);
+  assert.deepEqual((await pool.query("select * from public.payments order by id")).rows,payments);
+  const logs = (await pool.query("select * from public.audit_logs order by id")).rows;
+  await pool.query(sql);
+  assert.deepEqual((await pool.query("select * from public.products where id=$1",[product.id])).rows[0],afterProduct);
+  assert.deepEqual((await pool.query("select * from public.audit_logs order by id")).rows,logs);
+  await assert.rejects(asUser(staff,"update public.products set price_per_kg=1 where id=$1 returning id",[product.id]).then(result=>{ if (!result.rowCount) throw new Error("RLS denied"); }),/denied|permission/);
+  await save(input({ items:[{productId:product.id,price:600,quantity:0.5}],advance:10 }),staff,oldId,before.version);
+  assert.equal(Number((await row(oldId)).total_amount),300);
+  const newId=await save(input({items:[{productId:product.id,price:700,quantity:0.25}],advance:0}));
+  assert.equal(Number((await row(newId)).total_amount),175);
+  await assert.rejects(save(input({items:[{productId:product.id,price:600,quantity:0.25}],advance:0})),/price changed/);
+});

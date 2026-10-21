@@ -4,6 +4,7 @@ import { QuantityInput } from "./QuantityInput";
 import { lineTotal } from "../../utils/calculations";
 import { rateMoney } from "../../utils/pricing";
 import { money } from "../../utils/format";
+import { cataloguePosition, sortCatalogue } from "../../utils/catalogue";
 
 export function ProductChecklist({ products, items, original, errors, onChange }: {
   products: Product[]; items: OrderItem[]; original?: Order;
@@ -12,7 +13,7 @@ export function ProductChecklist({ products, items, original, errors, onChange }
   const [search, setSearch] = useState("");
   useEffect(() => { if (Object.keys(errors).some(key => key.startsWith("items"))) setSearch(""); }, [errors]);
   const selected = items.filter(item => item.productId);
-  const catalogue = products.filter(product => (product.available || selected.some(item => item.productId === product.id)) &&
+  const catalogue = sortCatalogue(products).filter(product => (product.available || selected.some(item => item.productId === product.id)) &&
     product.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
   return <>
     <div className="catalogue-selection-tools">
@@ -35,7 +36,7 @@ export function ProductChecklist({ products, items, original, errors, onChange }
                 onChange={event => onChange(event.target.checked
                   ? [...selected, { productId: product.id, name: historical?.name ?? product.name, price, quantity: 0.25 }]
                   : selected.filter(row => row.productId !== product.id))} />
-              <span>{item?.name ?? product.name}{!product.available && <small>Unavailable · existing item</small>}</span>
+              <span>{cataloguePosition(product.name) && <small className="catalogue-number">{cataloguePosition(product.name)}.</small>}{item?.name ?? product.name}{!product.available && <small>Unavailable · existing item</small>}</span>
             </label></td>
             <td data-label="दर पाव किलो">{rateMoney(price)}<small className="per-unit">दर पाव किलो (250 ग्रॅम)</small></td>
             <td data-label="प्रमाण"><QuantityInput index={catalogueIndex} label={`Quantity for ${product.name} (kg)`}

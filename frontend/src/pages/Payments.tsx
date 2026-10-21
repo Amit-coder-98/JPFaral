@@ -13,7 +13,8 @@ import {
 } from "../components/ui";
 import { ledgerPayments, metrics, paymentAmount } from "../utils/calculations";
 import { PaymentDialog } from "../components/orders/PaymentDialog";
-import { date, money, dayKey } from "../utils/format";
+import { date, money, dayKey, today } from "../utils/format";
+import { dailyPayments } from "../utils/dailyPayments";
 import { downloadCSV } from "../utils/export";
 export default function Payments() {
   const { data } = useApp();
@@ -24,6 +25,7 @@ export default function Payments() {
   const [to, setTo] = useState("");
   const [recording, setRecording] = useState(false);
   const [view, setView] = useState("live");
+  const [layout, setLayout] = useState("daily");
   const testHistory = view === "test";
   const rows = ledgerPayments(data.payments, data.deletedOrders ?? [], testHistory).filter((p) => {
     const o = allOrders.find((o) => o.id === p.orderId);
@@ -36,17 +38,14 @@ export default function Payments() {
         .includes(search.toLowerCase())
     );
   });
+  const daily = dailyPayments(rows);
   const m = metrics(data.orders, data.payments);
-  const cash = rows
-    .filter((p) => p.method === "Cash")
-    .reduce((n, p) => n + paymentAmount(p), 0);
-  const online = rows
-    .filter((p) => p.method === "Online")
-    .reduce((n, p) => n + paymentAmount(p), 0);
+  const cash = daily.reduce((n, day) => n + Math.round(day.cash * 100), 0) / 100;
+  const online = daily.reduce((n, day) => n + Math.round(day.online * 100), 0) / 100;
   const stats = [
     {
       label: testHistory ? "Recorded test amount" : "Received in this view",
-      value: money(cash + online),
+      value: money(Math.round((cash + online) * 100) / 100),
       icon: Wallet,
       tone: "maroon",
     },
@@ -158,6 +157,8 @@ export default function Payments() {
           </div>
         </div>
         <div className="date-filter-row">
+          <Button variant="secondary" onClick={() => { setFrom(today()); setTo(today()); }}>Today’s payments</Button>
+          <Button variant="ghost" onClick={() => { setFrom(""); setTo(""); }}>All dates</Button>
           <Field label="Payments from">
             <input
               type="date"
@@ -187,8 +188,27 @@ export default function Payments() {
             </Button>
           )}
         </div>
-        <DataTable
-          fitViewport
+        {from && to && from > to && <p className="field-error" role="alert">End date must be on or after the start date.</p>}
+        <div className="payment-layout-toolbar">
+          <div className="payment-view-filters" role="group" aria-label="Payment view">
+            <Button variant={layout === "daily" ? "primary" : "secondary"} aria-pressed={layout === "daily"} onClick={() => setLayout("daily")}>Daily summary</Button>
+            <Button variant={layout === "transactions" ? "primary" : "secondary"} aria-pressed={layout === "transactions"} onClick={() => setLayout("transactions")}>Transactions</Button>
+          </div>
+          {layout === "daily" && <Button variant="secondary" onClick={() => downloadCSV(testHistory ? "JPfaral-test-daily-payments.csv" : "JPfaral-daily-payments.csv",
+            ["Payment day (IST)", "Cash net", "Online net", "Receipts", "Refunds", "Net received", "Transactions"],
+            daily.map(day => [day.id, day.cash, day.online, day.receipts, day.refunds, day.net, day.transactions]))}><Download size={16} />Export daily summary</Button>}
+        </div>
+        <p className="payment-day-note muted">Payment dates use Indian time (IST). Cash and online totals are net of refunds; order dates do not affect these totals.</p>
+        {layout === "daily" ? <DataTable rows={daily} pagination={false} initialSort="id" columns={[
+          { key: "id", label: "Payment day", value: day => day.id, render: day => date(day.id, true) },
+          { key: "cash", label: "Cash net", value: day => day.cash, render: day => money(day.cash) },
+          { key: "online", label: "Online net", value: day => day.online, render: day => money(day.online) },
+          { key: "receipts", label: "Receipts", value: day => day.receipts, render: day => money(day.receipts) },
+          { key: "refunds", label: "Refunds", value: day => day.refunds, render: day => money(day.refunds) },
+          { key: "net", label: "Net received", value: day => day.net, render: day => <strong>{money(day.net)}</strong> },
+          { key: "transactions", label: "Transactions", value: day => day.transactions, render: day => <button className="text-link" aria-label={`View payments on ${day.id}`} onClick={() => { setFrom(day.id); setTo(day.id); setLayout("transactions"); }}>{day.transactions} · View list</button> },
+        ]} /> : <DataTable
+          pagination={false}
           rows={rows}
           initialSort="date"
           columns={[
@@ -254,7 +274,7 @@ export default function Payments() {
               render: (p) => date(p.date, true),
             },
           ]}
-        />
+        />}
       </Panel>
       <p className="export-note">
         Receipts and refunds are recorded as separate transactions. Earlier

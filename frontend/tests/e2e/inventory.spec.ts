@@ -85,7 +85,7 @@ test("cooking totals separate collections, expose receipt breakdowns, and share 
   expect(csv).toContain('"मोतीचूर लाडू","0.25"'); expect(csv).toContain('"बारीक शेव","10"');
   expect(csv).not.toMatch(/Kitchen customer|0000000001|Student|Customer|UTR|Price/);
   await page.setViewportSize({ width: 390, height: 844 });
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await page.screenshot({ path: "test-results/inventory-phone.png", fullPage: true });
   await page.emulateMedia({ media: "print" });
   await expect(page.locator(".inventory-screen")).not.toBeVisible();

@@ -292,6 +292,18 @@
 .product-checklist .item-unselected .quantity-input { opacity: .55; }
 .product-checklist .quantity-input { flex-direction: row; align-items: center; }
 .quantity-unit { flex: 0 0 auto; font-size: 13px; color: var(--muted); padding-inline: 4px; }
+.product-checkbox-label .catalogue-number { display: inline; margin-right: 8px; color: var(--muted); font-size: 12px; }
+.order-day-toolbar, .payment-layout-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 16px 24px; border-bottom: 1px solid var(--border); }
+.order-day-toolbar .field { margin: 0; min-width: 160px; }
+.order-day-toolbar > .muted { margin-left: auto; font-size: 12px; }
+.payment-layout-toolbar { justify-content: space-between; }
+.payment-day-note { padding: 12px 24px; margin: 0; font-size: 12px; }
+@media screen and (max-width: 640px) {
+  .order-day-toolbar, .payment-layout-toolbar { padding: 16px; }
+  .order-day-toolbar .field { flex: 1 1 150px; min-width: 0; }
+  .order-day-toolbar > .muted { margin-left: 0; width: 100%; }
+  .payment-day-note { padding: 12px 16px; }
+}
 .school-overview { display: grid; gap: 24px; margin-bottom: 24px; }
 .school-summary-actions select { min-height: 42px; width: auto; max-width: 100%; }
 .collection-payment-summary { margin-bottom: 20px; }

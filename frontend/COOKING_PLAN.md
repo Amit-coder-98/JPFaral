@@ -6,6 +6,8 @@ The default **Today’s orders** view totals orders placed on the current Indian
 
 The four summary cards show distinct orders, total ordered kg, kg awaiting collection and kg already collected. The product table groups quantities by product ID, keeps the approved Marathi catalogue names and retains demand for inactive or historical products. Drafts and deleted orders are excluded. Legacy Ready orders count as Confirmed. Collected quantities remain visible for reconciliation and are excluded from the cook sheet.
 
+From 21 October, product rows and kitchen sheets follow the client's printed 1–26 rate-card sequence. Additional or historical products appear after that list; sorting never changes recorded quantities or prices.
+
 **Orders** on each product opens the contributing receipt numbers, collection dates, kg and statuses. Links use permanent order UUIDs, so reused receipt numbers cannot mix archived and current orders. **Pending order quantities** shows the quantities requested per outstanding order, such as `4 × 0.25 kg + 2 × 1 kg`. These are order sizes, not a prescribed packaging split.
 
 Choose **Print cook sheet** to print or save as PDF using the browser. **Export kitchen CSV** provides a UTF-8 spreadsheet. Both include every filtered product with pending demand, independently of table pagination. They include the date basis/range, Marathi product names, pending kg, pending order counts and quantity breakdowns. Customer/student names, phone numbers, prices and payment details are omitted from the kitchen sheet. Invalid ranges or invalid source quantities prevent sharing an incomplete plan.

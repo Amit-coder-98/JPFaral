@@ -1,5 +1,11 @@
 ﻿# Implementation and verification
 
+## Client rate, sequence, daily payments and full order lists — 21 October 2026
+
+The approved 1–26 card sequence now applies across product selection, catalogue, bills, kitchen plans and product reports. Orders defaults to the complete matching list, with visible day selection and optional pagination. Payments has a daily IST cash/online reconciliation and full-day transaction drill-down. Exact-count batched reads also support smaller configured server caps without silently truncating records.
+
+Verification passed: **73 backend tests, 136 frontend unit tests, 51 browser scenarios across verification runs, eight simulated Supabase browser checks and the production build**. Existing collection, deletion, refund, receipt reuse, historical price and authorization protections remain covered. Linked migration history confirms the prior nine migrations are applied; the dry run lists only the new `202610210001_nutritious_laddu_rate.sql`. It changes the existing पौष्टिक लाडू product to INR 175/250 g while leaving historical bills and payments untouched. **The new migration is pending operator review/application; it was not applied to production.** See [client corrections and exact apply commands](CLIENT_CORRECTIONS_2026_10_21.md).
+
 ## Order-based inventory and cooking plan — 18 October 2026
 
 Added the authenticated `/inventory` page and **Inventory & Cooking** navigation for active administrators and staff. The read-only planner aggregates shared confirmed/legacy Ready/collected orders in exact integer quarter-kg units, grouping by product identity and retaining Marathi names and inactive/historical demand. Today’s orders is the default; Due today, Due tomorrow, inclusive order/collection date ranges, category and product filters support fresh production planning. Drafts and deleted orders are excluded. Ordered, awaiting-collection and collected kg remain distinct; no prepared-stock balance or recipe buffer is invented.

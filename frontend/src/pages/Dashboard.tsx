@@ -119,6 +119,7 @@ export default function Dashboard() {
           <span className="muted">
             {date(today())}
           </span>
+          <Link to={`/orders?from=${today()}&to=${today()}${personal ? `&staff=${user?.id}` : ""}`}>View today’s full list <ArrowRight size={14} /></Link>
         </div>
         <div>
           <span className="mini-stat-icon">

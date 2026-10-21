@@ -52,6 +52,7 @@ test("bulk selections persist across pages, clear on filtering, and remove only 
   for (let i=1;i<=3;i++) orders.push(await create(page,`Bulk cleanup ${i}`));
   await page.getByRole("link",{name:"Orders",exact:true}).click();
   await page.getByLabel("Search orders",{exact:true}).fill("Bulk cleanup");
+  await page.getByLabel("Orders per page").selectOption("8");
   await page.setViewportSize({width:1280,height:650});
   const firstRowNumbers = await page.locator("tbody .order-link").allTextContents();
   await page.getByLabel("Select all eligible orders on this page").check();
@@ -102,7 +103,7 @@ test("deleted orders free their receipt number while new and archived bills keep
   await expect(page.locator("tbody tr td").nth(1)).toHaveText("1");
   await expect(page.locator("tbody .order-link")).toHaveText(next.number);
   await expect(page.locator(".order-numbering-note")).toContainText("receipt numbers become available");
-  await expect(page.locator(".pagination")).toContainText("Showing 1–1 of 1");
+  await expect(page.getByText("Showing all 1 matching order",{exact:true})).toBeVisible();
   await page.getByRole("link", { name: "Activity & Audit Logs", exact: true }).click();
   await page.getByLabel("Filter activity action").selectOption("Deleted");
   await page.getByRole("link", { name: first.number, exact: true }).click();
@@ -140,6 +141,7 @@ test("paid orders explain the refund requirement and keep their ledger after del
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByRole("link",{name:"Payments",exact:true}).click();
   await page.getByLabel("Search payments",{exact:true}).fill(order.number);
+  await page.getByRole("button",{name:"Transactions",exact:true}).click();
   await expect(page.locator("tbody tr")).toHaveCount(2);
   await expect(page.locator("tbody")).toContainText("Paid cleanup test");
   await expect(page.locator("tbody")).toContainText("Refund");
@@ -232,6 +234,7 @@ test("paid collected test orders allow bulk checkbox cleanup and keep separately
   await page.getByLabel("Search payments",{exact:true}).fill(order.number);
   await expect(page.getByText("No results found",{exact:true})).toBeVisible();
   await page.getByLabel("Payment records").selectOption("test");
+  await page.getByRole("button",{name:"Transactions",exact:true}).click();
   await expect(page.locator("tbody tr")).toHaveCount(1);
   await expect(page.locator("tbody")).toContainText("Receipt");
   await expect(page.locator("tbody")).not.toContainText("Refund");

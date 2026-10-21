@@ -159,6 +159,7 @@ test("Supabase-mode paid collected test selection sends explicit cleanup and pre
   await page.getByRole("link",{name:"Payments",exact:true}).click();
   await expect(page.getByText("No results found",{exact:true})).toBeVisible();
   await page.getByLabel("Payment records").selectOption("test");
+  await page.getByRole("button",{name:"Transactions",exact:true}).click();
   await expect(page.locator("tbody tr")).toHaveCount(1);
   await expect(page.locator("tbody")).toContainText("₹1,320.00");
   await expect(page.locator("tbody")).not.toContainText("Refund");

@@ -9,7 +9,7 @@ export const rateCard: {
   { name: "मोतीचूर लाडू", ratePer250g: 110, category: "Sweet" },
   { name: "बेसन लाडू (तुपातील)", ratePer250g: 165, category: "Sweet" },
   { name: "रवा लाडू (तुपातील)", ratePer250g: 140, category: "Sweet" },
-  { name: "पौष्टिक लाडू (तुपातील)", ratePer250g: 150, category: "Sweet" },
+  { name: "पौष्टिक लाडू (तुपातील)", ratePer250g: 175, category: "Sweet" },
   { name: "करंजी (तुपातील)", ratePer250g: 140, category: "Sweet" },
   { name: "शंकरपाळी", ratePer250g: 110, category: "Sweet" },
   { name: "चिरोटे", ratePer250g: 125, category: "Sweet" },

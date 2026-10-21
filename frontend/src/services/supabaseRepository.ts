@@ -105,15 +105,17 @@ export class SupabaseRepository implements FrontendRepository {
     const result: Row[] = [];
     // PostgREST defaults to 1000 records. Fetch complete data in bounded batches;
     // existing tables paginate/filter locally, and exports never silently truncate.
-    for (let offset = 0; ; offset += 500) {
-      const { data, error } = await this.api()
+    for (let offset = 0; ;) {
+      const { data, error, count } = await this.api()
         .from(table)
-        .select(columns)
+        .select(columns, { count: "exact" })
         .order("id")
         .range(offset, offset + 499);
       if (error) throw new Error(error.message);
       result.push(...(data as unknown as Row[]));
-      if (data.length < 500) break;
+      offset += data.length;
+      if (count !== null ? offset >= count : data.length < 500) break;
+      if (!data.length) throw new Error(`Unable to load the complete ${table} list. Refresh records and retry.`);
     }
     return result;
   }

@@ -1,7 +1,8 @@
 import { productQuantity } from "./helpers/orderProducts";
 import { expect, test } from "@playwright/test";
 
-const lists = ["/students", "/orders", "/payments", "/staff", "/activity"];
+// Orders and payment transactions intentionally offer the full day list now.
+const lists = ["/students", "/staff", "/activity"];
 for (const viewport of [
   { width: 1280, height: 720 }, { width: 1440, height: 900 },
   { width: 768, height: 1024 }, { width: 390, height: 844 },

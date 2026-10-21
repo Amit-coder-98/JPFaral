@@ -59,6 +59,7 @@ test("additional receipts and refunds preserve separate ledger transactions", as
   await expect(page.locator(".bill")).toContainText("₹105.00");
   await page.getByRole("link", { name: "Payments", exact: true }).click();
   await page.getByRole("textbox", { name: "Search payments" }).fill("JP-0087");
+  await page.getByRole("button", { name: "Transactions", exact: true }).click();
   await expect(page.locator("tbody tr")).toHaveCount(3);
   await expect(page.locator("tbody")).toContainText("Refund");
   await expect(page.locator("tbody")).toContainText("-₹10.00");
@@ -276,6 +277,7 @@ test("create, validate, preview, save, edit and reconcile an order", async ({
   await expect(page.locator(".bill")).toContainText("Collected");
   await page.getByRole("link", { name: "Payments", exact: true }).click();
   await page.getByRole("textbox", { name: "Search payments" }).fill("JP-0087");
+  await page.getByRole("button", { name: "Transactions", exact: true }).click();
   await expect(page.locator("tbody tr")).toHaveCount(2);
   await expect(page.locator("tbody")).toContainText("₹120.00");
   await page
@@ -326,6 +328,7 @@ test("filtered orders, sorting, pagination and actual CSV download", async ({
   page,
 }) => {
   await page.goto("/orders");
+  await page.getByLabel("Orders per page").selectOption("8");
   await expect(page.locator(".pagination")).toContainText(/Showing 1–\d+ of 86/);
   await page.getByRole("button", { name: "Next page" }).click();
   await expect(page.locator(".pagination")).toContainText(/Page 2 of \d+/);

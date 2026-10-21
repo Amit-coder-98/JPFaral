@@ -12,12 +12,14 @@ export function OrderTable({
   selected,
   onSelect,
   onDelete,
+  pageSize = 8,
 }: {
   orders: Order[];
   compact?: boolean;
   selected?: Set<string>;
   onSelect?: (selected: Set<string>) => void;
   onDelete?: (order: Order) => void;
+  pageSize?: number | "all";
 }) {
   const { data } = useApp();
   const serials = activeOrderSerials(orders);
@@ -159,10 +161,10 @@ export function OrderTable({
     <DataTable
       rows={orders}
       columns={columns}
-      pageSize={compact ? 5 : 8}
-      fitViewport={!compact}
-      pagination={!compact}
-      initialSort="number"
+      pageSize={compact ? 5 : pageSize === "all" ? 8 : pageSize}
+      fitViewport={false}
+      pagination={!compact && pageSize !== "all"}
+      initialSort="date"
       selection={!compact && selected && onSelect ? {
         selected, onChange: onSelect, canSelect: (order) => !order.deletedAt, label: (order) => `Select ${order.number}`,
       } : undefined}
