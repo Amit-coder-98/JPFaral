@@ -26,6 +26,7 @@ import { Button, Field, Modal, PageHeader } from "../components/ui";
 import { Bill } from "../components/orders/Bill";
 import { OrderTable } from "../components/orders/OrderTable";
 import { ProductChecklist } from "../components/orders/ProductChecklist";
+import { PaymentDialog } from "../components/orders/PaymentDialog";
 import { divisions } from "../data/reference";
 import { orderSchema, quantitySchema } from "../services/validation";
 import { rateMoney } from "../utils/pricing";
@@ -112,6 +113,10 @@ const [division, setDivision] = useState(selectedInitial?.division ?? "");
   const [preview, setPreview] = useState(false);
   const [saved, setSaved] = useState<Order | null>(null);
   const [saving, setSaving] = useState(false);
+  const [payment, setPayment] = useState(false);
+  const recordedOrder = !!original && original.status !== "Draft";
+  const hasOrderChanges = !!original && (["studentId", "customerName", "customerPhone", "items", "collectionDate", "collectorType", "collectorName"] as const)
+    .some(key => JSON.stringify(form[key]) !== JSON.stringify(original[key]));
   const student = data.students.find((s) => s.id === form.studentId);
   const historyOrders = data.orders.filter(
     (o) => o.studentId === form.studentId,
@@ -227,6 +232,23 @@ const [division, setDivision] = useState(selectedInitial?.division ?? "");
     } finally {
       setSaving(false);
     }
+  };
+  const openPayment = async () => {
+    if (!original || saving) return;
+    if (hasOrderChanges) {
+      if (!validate()) return;
+      setSaving(true);
+      try {
+        const updated = await repository.saveOrder(form, user!.id, original.status, original.id, requestId);
+        setForm(structuredClone(updated));
+      } catch (error) {
+        toast(error instanceof Error ? error.message : "Unable to save order changes.", true);
+        return;
+      } finally {
+        setSaving(false);
+      }
+    }
+    setPayment(true);
   };
   const previewOrder: Order = {
     ...form,
@@ -501,14 +523,12 @@ const [division, setDivision] = useState(selectedInitial?.division ?? "");
                   className="readonly-input"
                 />
               </Field>
-              <Field label="Advance amount (optional)" error={errors.advance}>
+              <Field label={recordedOrder ? "Total received (recorded)" : "Advance amount (optional)"} error={errors.advance}>
                 <div className="currency-input">
                   <span>₹</span>
                   <input
-                    aria-label="Advance amount (optional)"
-                    readOnly={
-                      !isMock && !!original && original.status !== "Draft"
-                    }
+                    aria-label={recordedOrder ? "Total received (recorded)" : "Advance amount (optional)"}
+                    readOnly={recordedOrder}
                     type="number"
                     min={0}
                     max={total}
@@ -524,13 +544,14 @@ const [division, setDivision] = useState(selectedInitial?.division ?? "");
                   />
                 </div>
               </Field>
-              {!isMock && original && original.status !== "Draft" && (
-                <p className="muted">
-                  Payments already received cannot be edited here. Use Record
-                  payment on this order to add receipts or refunds.
-                </p>
-              )}
             </div>
+            {recordedOrder && original.status !== "Collected" && <div className="info-box order-edit-payment">
+              <span>Forgot to record an advance? Add the amount received to this same receipt. Existing payments stay unchanged.
+                {hasOrderChanges && <small>Your order changes will be saved before the payment form opens.</small>}</span>
+              <Button variant="secondary" loading={saving} onClick={() => void openPayment()}>
+                <Wallet size={16} />{hasOrderChanges ? "Save changes & add payment" : "Add advance / payment"}
+              </Button>
+            </div>}
             <fieldset className="radio-fieldset">
               <legend>
                 Payment method <span className="required">*</span>
@@ -544,9 +565,7 @@ const [division, setDivision] = useState(selectedInitial?.division ?? "");
                     <input
                       type="radio"
                       name="payment-method"
-                      disabled={
-                        !isMock && !!original && original.status !== "Draft"
-                      }
+                      disabled={recordedOrder}
                       value={method}
                       checked={form.paymentMethod === method}
                       onChange={() => set("paymentMethod", method)}
@@ -565,9 +584,7 @@ const [division, setDivision] = useState(selectedInitial?.division ?? "");
               >
                 <input
                   value={form.utr}
-                  readOnly={
-                    !isMock && !!original && original.status !== "Draft"
-                  }
+                  readOnly={recordedOrder}
                   onChange={(e) => set("utr", e.target.value)}
                   placeholder="Enter transaction reference"
                 />
@@ -850,6 +867,8 @@ const [division, setDivision] = useState(selectedInitial?.division ?? "");
           </Button>
         </div>
       </Modal>
+      {payment && original && <PaymentDialog orderId={original.id} onClose={() => setPayment(false)}
+        onSaved={() => navigate(`/orders/${original.id}`)} />}
       <Modal
         open={!!saved}
         onClose={() => {

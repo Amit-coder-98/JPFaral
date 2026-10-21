@@ -263,16 +263,15 @@ test("create, validate, preview, save, edit and reconcile an order", async ({
   await expect(page.locator(".bill")).toContainText("DEMO-TEST-123");
   await page.getByRole("link", { name: "Edit order", exact: true }).click();
   await expect(productQuantity(page, "p1")).toHaveValue("0.5");
-  await page
-    .getByLabel("Advance amount (optional)", { exact: true })
-    .fill("120");
+  await expect(page.getByLabel("Total received (recorded)",{exact:true})).toHaveAttribute("readonly", "");
+  await page.getByLabel("Customer name",{exact:false}).fill("Demo Edited Customer");
   await page
     .getByRole("button", { name: "Save changes", exact: true })
     .last()
     .click();
   await page.getByRole("button", { name: "View order", exact: true }).click();
   await expect(page.locator(".bill")).toContainText("₹100.00");
-  await expect(page.getByText("advance", { exact: true })).toBeVisible();
+  await expect(page.getByText("customerName", { exact: true })).toBeVisible();
   await collectOrder(page);
   await expect(page.locator(".bill")).toContainText("Collected");
   await page.getByRole("link", { name: "Payments", exact: true }).click();

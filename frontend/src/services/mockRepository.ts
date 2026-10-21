@@ -154,6 +154,11 @@ export class MockRepository implements FrontendRepository {
       : undefined;
     if (id && this.state.deletedOrders?.some((order) => order.id === id)) throw new Error("Deleted orders cannot be saved or reopened.");
     if (id && !previous) throw new Error("This order no longer exists.");
+    if (previous?.status === "Collected") throw new Error("Collected orders cannot be edited.");
+    if (previous && (input as Order).version !== undefined && (input as Order).version !== (previous.version ?? 1))
+      throw new Error("This order changed. Refresh before editing.");
+    if (previous && previous.status !== "Draft" && clean.advance !== previous.advance)
+      throw new Error("Existing receipts are immutable. Record another payment instead.");
     const timestamp = now();
     const order: Order = {
       ...clean,
@@ -168,19 +173,16 @@ export class MockRepository implements FrontendRepository {
       editedBy: actor,
       editedAt: timestamp,
     };
-    const payments = this.state.payments.filter((p) => p.orderId !== order.id);
-    const oldPayment = this.state.payments.find((p) => p.orderId === order.id);
-    if (order.advance > 0 && status !== "Draft")
+    const payments = [...this.state.payments];
+    if (order.advance > 0 && status !== "Draft" && (!previous || previous.status === "Draft"))
       payments.push({
-        id: oldPayment?.id ?? crypto.randomUUID(),
+        id: crypto.randomUUID(),
         orderId: order.id,
         amount: order.advance,
         method: order.paymentMethod,
         utr: order.utr,
-        receivedBy:
-          oldPayment?.amount === order.advance ? oldPayment.receivedBy : actor,
-        date:
-          oldPayment?.amount === order.advance ? oldPayment.date : timestamp,
+        receivedBy: actor,
+        date: timestamp,
       });
     const auditFields: (keyof OrderInput)[] = [
       "studentId",

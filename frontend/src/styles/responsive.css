@@ -292,6 +292,10 @@
 .product-checklist .item-unselected .quantity-input { opacity: .55; }
 .product-checklist .quantity-input { flex-direction: row; align-items: center; }
 .quantity-unit { flex: 0 0 auto; font-size: 13px; color: var(--muted); padding-inline: 4px; }
+.order-edit-payment { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-bottom: 20px; }
+.order-edit-payment > span { flex: 1 1 260px; min-width: 0; }
+.order-edit-payment small { display: block; margin-top: 6px; }
+.order-edit-payment .button { white-space: normal; }
 .product-checkbox-label .catalogue-number { display: inline; margin-right: 8px; color: var(--muted); font-size: 12px; }
 .order-day-toolbar, .payment-layout-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 16px 24px; border-bottom: 1px solid var(--border); }
 .order-day-toolbar .field { margin: 0; min-width: 160px; }

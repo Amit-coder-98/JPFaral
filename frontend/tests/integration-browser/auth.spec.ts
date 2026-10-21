@@ -168,6 +168,41 @@ test("Supabase-mode paid collected test selection sends explicit cleanup and pre
   await expect(page.locator(".bill")).toContainText("₹1,320.00");
   await expect(page.locator(".bill .balance")).toContainText("₹0.00");
 });
+test("a missed advance from the Supabase edit page appends a receipt to the same order without rewriting the order",async({page})=>{
+  await service(page);
+  const orderId="c1111111-1111-4111-8111-111111111111";
+  const order={id:orderId,order_number:"JP-0401",receipt_number:"JP-0401",version:1,status:"Confirmed",total_amount:"440.00",
+    student_name:"Student",student_standard:"5th",student_division:"Devi Padmini",customer_name:"Existing customer",customer_phone:"9876543210",
+    collection_date:"2026-10-25",collector_type:"Customer",collector_name:"Existing customer",created_by:id,updated_by:id,
+    created_at:"2026-10-21T10:00:00Z",updated_at:"2026-10-21T10:00:00Z",deleted_at:null};
+  const receipts:Record<string,unknown>[]=[];
+  let writes=0;
+  const items=[{id:"item",order_id:orderId,product_id:"product",product_name:"मोतीचूर लाडू",price_per_kg:"440.00",quantity_kg:"1.00",position:1}];
+  for(const [table,rows] of [["orders",[order]],["order_items",items],["payments",receipts]] as const)
+    await page.route(`https://fixture.supabase.co/rest/v1/${table}*`,route=>route.fulfill({contentType:"application/json",body:JSON.stringify(rows)}));
+  await page.route("https://fixture.supabase.co/rest/v1/rpc/save_order",route=>{writes++;return route.fulfill({status:400,contentType:"application/json",body:JSON.stringify({message:"Unexpected order rewrite"})});});
+  await page.route("https://fixture.supabase.co/rest/v1/rpc/record_payment",route=>{
+    const body=route.request().postDataJSON();
+    expect(body).toMatchObject({p_order_id:orderId,p_amount:100,p_method:"Cash",p_kind:"receipt"});
+    expect(body).not.toHaveProperty("p_actor");
+    expect(body.p_request_id).toMatch(/^[0-9a-f-]{36}$/);
+    receipts.push({id:"missed-payment",order_id:orderId,amount:"100.00",method:"Cash",reference:"",kind:"receipt",received_by:id,paid_at:"2026-10-21T11:00:00Z"});
+    order.version++;
+    return route.fulfill({contentType:"application/json",body:JSON.stringify("missed-payment")});
+  });
+  await login(page);
+  await page.goto(`/orders/${orderId}/edit`);
+  await page.getByRole("button",{name:"Add advance / payment",exact:true}).click();
+  await page.getByLabel("Payment amount",{exact:false}).fill("100");
+  await page.getByRole("button",{name:"Save transaction",exact:true}).click();
+  await expect(page).toHaveURL(new RegExp(`/orders/${orderId}$`));
+  await expect(page.locator("main h1")).toHaveText("JP-0401");
+  await expect(page.locator(".bill .balance")).toContainText("₹340.00");
+  await expect(page.locator(".order-payment-history tbody tr")).toHaveCount(1);
+  expect(writes).toBe(0);
+  expect(receipts).toHaveLength(1);
+});
+
 test("Supabase login restores on refresh, shows empty real workspace, and signs out", async ({
   page,
 }) => {

@@ -8,9 +8,11 @@ import type { PaymentInput } from "../../types";
 export function PaymentDialog({
   orderId,
   onClose,
+  onSaved,
 }: {
   orderId?: string;
   onClose: () => void;
+  onSaved?: (orderId: string) => void;
 }) {
   const { data, user, repository, toast } = useApp();
   const [form, setForm] = useState<PaymentInput>({
@@ -36,6 +38,7 @@ export function PaymentDialog({
       <form
         onSubmit={async (e) => {
           e.preventDefault();
+          if (busy) return;
           setError("");
           if (
             !order ||
@@ -51,6 +54,7 @@ export function PaymentDialog({
             await repository.recordPayment(form, user!.id);
             toast("Payment recorded.");
             onClose();
+            onSaved?.(form.orderId);
           } catch (e) {
             setError((e as Error).message);
           } finally {
@@ -97,7 +101,9 @@ export function PaymentDialog({
             </select>
           </Field>
         )}
-        <Field label="Payment amount" required>
+        <Field label="Payment amount" required hint={form.kind === "refund"
+          ? "Enter this refund amount. It is deducted from the total received."
+          : "Enter only this payment amount. It is added to the total already received."}>
           <input
             type="number"
             min="0.01"

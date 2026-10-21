@@ -1,5 +1,11 @@
 ﻿# Implementation and verification
 
+## Missed advances on an existing order — 21 October 2026
+
+The confirmed-order editor now shows **Total received (recorded)** and an **Add advance / payment** action next to it. The action opens the existing authorized payment workflow for the same order UUID and receipt. Only the additional payment amount is entered; old receipts remain immutable, the remaining balance is recalculated, and successful recording returns to the updated bill. With no unsaved order changes, no order-save RPC is sent. If details or quantities have changed, the action becomes **Save changes & add payment** and validates/saves those changes first; stale edits cannot be silently rebased. Cancelling the payment keeps the editor open and adds no receipt; explicitly saved order changes remain saved.
+
+Mock order edits now preserve every existing receipt/refund and reject direct advance replacement, matching production financial rules. Verification passed: **74 backend tests, 137 frontend unit tests, 29 order/payment browser scenarios across verification runs, nine simulated Supabase-mode browser checks and the production build**. The regressions cover a zero-advance order corrected in place, mixed cash/online advances, unsaved quantity edits, later edits preserving both receipts, cancellation, unchanged active-order counts and stable UUID/receipt identity. Desktop and 320px phone visuals were checked. **No schema, RPC, RLS or production migration change is needed for this fix.**
+
 ## Client rate, sequence, daily payments and full order lists — 21 October 2026
 
 The approved 1–26 card sequence now applies across product selection, catalogue, bills, kitchen plans and product reports. Orders defaults to the complete matching list, with visible day selection and optional pagination. Payments has a daily IST cash/online reconciliation and full-day transaction drill-down. Exact-count batched reads also support smaller configured server caps without silently truncating records.

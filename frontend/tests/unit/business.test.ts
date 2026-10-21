@@ -128,21 +128,31 @@ describe("Order calculations and consistency", () => {
       r.getSnapshot().orders.find((o) => o.id === saved.id)!.items[0].price,
     ).toBe(360);
   });
-  it("replaces an edited advance without double-counting and records before/after", () => {
+  it("adds a missed advance as a separate receipt and preserves every payment when the order is edited", () => {
     const r = new MockRepository();
     const saved = r.saveOrder(validOrder(), "u2");
-    r.saveOrder({ ...validOrder(), advance: 150 }, "u1", "Confirmed", saved.id);
-    expect(
-      r.getSnapshot().payments.filter((p) => p.orderId === saved.id),
-    ).toHaveLength(1);
-    expect(
-      r.getSnapshot().payments.find((p) => p.orderId === saved.id)!.amount,
-    ).toBe(150);
-    expect(r.getSnapshot().logs[0].changes).toContainEqual({
-      field: "advance",
-      before: "100",
-      after: "150",
-    });
+    const initial = structuredClone(r.getSnapshot().payments);
+    expect(() => r.saveOrder({ ...validOrder(), advance: 150 }, "u1", "Confirmed", saved.id)).toThrow("immutable");
+    r.recordPayment({orderId:saved.id,amount:50,method:"Cash",utr:"",kind:"receipt",requestId:crypto.randomUUID()},"u1");
+    const payments = structuredClone(r.getSnapshot().payments);
+    expect(payments.filter(payment=>payment.orderId===saved.id)).toHaveLength(2);
+    for(const payment of initial) expect(payments).toContainEqual(payment);
+    const current = r.getSnapshot().orders.find(order=>order.id===saved.id)!;
+    const updated = r.saveOrder({...current, customerName:"Corrected customer"},"u1","Confirmed",saved.id);
+    expect(updated).toMatchObject({id:saved.id,number:saved.number,advance:150});
+    expect(r.getSnapshot().payments).toEqual(payments);
+    expect(() => r.saveOrder({...current,customerName:"Stale edit"},"u1","Confirmed",saved.id)).toThrow("changed");
+  });
+  it("records a forgotten first advance on the existing zero-payment order without creating a replacement",()=>{
+    const r=new MockRepository();
+    const saved=r.saveOrder({...validOrder(),advance:0},"u2");
+    const count=r.getSnapshot().orders.length;
+    const payment={orderId:saved.id,amount:100,method:"Online" as const,utr:"MISSED-ADVANCE",kind:"receipt" as const,requestId:crypto.randomUUID()};
+    r.recordPayment(payment,"u2");
+    r.recordPayment(payment,"u2");
+    expect(r.getSnapshot().orders).toHaveLength(count);
+    expect(r.getSnapshot().orders.find(order=>order.id===saved.id)).toMatchObject({number:saved.number,advance:100});
+    expect(r.getSnapshot().payments.filter(receipt=>receipt.orderId===saved.id)).toMatchObject([{amount:100,method:"Online",utr:"MISSED-ADVANCE"}]);
   });
 });
 describe("Validation and imports", () => {

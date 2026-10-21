@@ -1337,3 +1337,24 @@ test("October 21 rate upgrade is idempotent, protects historical bills/payments 
   assert.equal(Number((await row(newId)).total_amount),175);
   await assert.rejects(save(input({items:[{productId:product.id,price:600,quantity:0.25}],advance:0})),/price changed/);
 });
+
+test("a missed advance appends to the same confirmed receipt and later order edits preserve its cash/online ledger",async()=>{
+  const id=await save(input({advance:0}));
+  const original=await row(id);
+  const request=randomUUID();
+  const receipt=await pay(id,20,"Cash","","receipt",staff,request);
+  assert.equal(await pay(id,20,"Cash","","receipt",staff,request),receipt);
+  await pay(id,10,"Online",`MISSED-${randomUUID()}`);
+  const current=await row(id);
+  const payments=(await pool.query("select * from public.payments where order_id=$1 order by id",[id])).rows;
+  assert.equal(payments.length,2);
+  assert.equal(payments.reduce((sum,payment)=>sum+Number(payment.amount),0),30);
+  await save(input({advance:30,customerName:"Corrected existing customer"}),staff,id,current.version);
+  const edited=await row(id);
+  assert.equal(edited.order_number,original.order_number);
+  assert.equal(edited.receipt_number,original.receipt_number);
+  assert.equal(edited.deleted_at,null);
+  assert.deepEqual((await pool.query("select * from public.payments where order_id=$1 order by id",[id])).rows,payments);
+  assert.equal(Number(edited.total_amount)-30,31.75);
+  await assert.rejects(save(input({advance:0}),staff,id,edited.version),/immutable/);
+});
