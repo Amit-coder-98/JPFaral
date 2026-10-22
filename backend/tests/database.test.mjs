@@ -1358,3 +1358,48 @@ test("a missed advance appends to the same confirmed receipt and later order edi
   assert.equal(Number(edited.total_amount)-30,31.75);
   await assert.rejects(save(input({advance:0}),staff,id,edited.version),/immutable/);
 });
+
+test("Stall orders save with a NULL student, retain their receipt and ledger on edit, and settle at collection",async()=>{
+  const studentCount=(await pool.query("select count(*) from public.students")).rows[0].count;
+  const direct=input({studentId:"",collectorType:"Customer",collectorName:"Direct customer",customerName:"Direct customer",advance:10});
+  const request=randomUUID(), id=await save(direct,staff,null,null,"Confirmed",request);
+  assert.equal(await save(direct,staff,null,null,"Confirmed",request),id);
+  const original=await row(id);
+  assert.equal(original.student_id,null);
+  for(const key of ["student_name","student_standard","student_division"]) assert.equal(original[key],"");
+  assert.equal(Number(original.total_amount),61.75);
+  const initialPayments=(await pool.query("select * from public.payments where order_id=$1 order by id",[id])).rows;
+  await save({...direct,customerName:"Corrected direct customer"},staff,id,original.version);
+  const edited=await row(id);
+  assert.equal(edited.receipt_number,original.receipt_number); assert.equal(edited.order_number,original.order_number);
+  assert.equal(edited.student_id,null);
+  assert.deepEqual((await pool.query("select * from public.payments where order_id=$1 order by id",[id])).rows,initialPayments);
+  await assert.rejects(save({...direct,advance:20},staff,id,edited.version),/immutable/);
+  await pay(id,20,"Online",`STALL-${randomUUID()}`);
+  const current=await row(id), paymentRequest=randomUUID();
+  await asUser(staff,"select public.collect_order($1,$2,$3,$4,$5,$6)",[id,current.version,paymentRequest,31.75,"Cash",""]);
+  await asUser(staff,"select public.collect_order($1,$2,$3,$4,$5,$6)",[id,current.version,paymentRequest,31.75,"Cash",""]);
+  const collected=await row(id);
+  assert.equal(collected.status,"Collected"); assert.equal(collected.student_id,null);
+  const ledger=(await pool.query("select * from public.payments where order_id=$1 order by id",[id])).rows;
+  assert.equal(ledger.length,3); assert.equal(ledger.reduce((sum,payment)=>sum+Number(payment.amount),0),61.75);
+  assert.deepEqual(ledger.find(payment=>payment.id===initialPayments[0].id),initialPayments[0]);
+  assert.equal((await pool.query("select count(*) from public.students")).rows[0].count,studentCount);
+  await assert.rejects(save(direct,inactive),/authorized/);
+});
+
+test("Stall drafts resume without a student while customer validation and school collector rules remain enforced",async()=>{
+  const direct=input({studentId:"",collectorType:"Customer",collectorName:"Direct customer"});
+  const draft=await save({...direct,customerName:"",customerPhone:"",collectorName:"",advance:0},staff,null,null,"Draft");
+  const before=await row(draft);
+  await save(direct,staff,draft,before.version);
+  assert.equal((await row(draft)).student_id,null);
+  assert.equal((await row(draft)).receipt_number,before.receipt_number);
+  for(const patch of [{customerName:""},{customerPhone:"123"},{collectorName:""}])
+    await assert.rejects(save({...direct,...patch}),/constraint|violates|customer/i);
+  await assert.rejects(save({...direct,collectorType:"Student"}),/student collector/);
+  const school=await save();
+  assert.notEqual((await row(school)).student_name,"");
+  await save(direct,staff,school,(await row(school)).version);
+  for(const key of ["student_name","student_standard","student_division"]) assert.equal((await row(school))[key],"");
+});

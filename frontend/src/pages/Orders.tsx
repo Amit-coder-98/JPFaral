@@ -26,6 +26,7 @@ import { orderTotal, balance, lineTotal } from "../utils/calculations";
 import { rateMoney } from "../utils/pricing";
 import { money, dayKey, today } from "../utils/format";
 import { sortCatalogue } from "../utils/catalogue";
+import { isStallOrder, orderSourceLabel } from "../utils/orderSource";
 import { downloadCSV, downloadExcel } from "../utils/export";
 export default function Orders() {
   const { data, toast, user } = useApp();
@@ -41,6 +42,7 @@ export default function Orders() {
   const [division, setDivision] = useState("");
   const [staff, setStaff] = useState(params.get("staff") ?? "");
   const [method, setMethod] = useState("");
+  const [source, setSource] = useState(params.get("source") ?? "");
   const [from, setFrom] = useState(params.get("from") ?? "");
   const [to, setTo] = useState(params.get("to") ?? "");
   const [pageSize, setPageSize] = useState<number | "all">("all");
@@ -51,7 +53,7 @@ export default function Orders() {
         const s =
           o.studentSnapshot ?? data.students.find((s) => s.id === o.studentId);
         return (
-          `${o.number} ${o.customerName} ${o.customerPhone} ${s?.name}`
+          `${o.number} ${o.customerName} ${o.customerPhone} ${s?.name ?? ""} ${orderSourceLabel(o)}`
             .toLowerCase()
             .includes(search.toLowerCase()) &&
           (!status || orderStatusLabel(o.status) === status) &&
@@ -59,11 +61,12 @@ export default function Orders() {
           (!division || s?.division === division) &&
           (!staff || o.createdBy === staff) &&
           (!method || o.paymentMethod === method) &&
+          (!source || orderSourceLabel(o) === source) &&
           (!from || dayKey(o.createdAt) >= from) &&
           (!to || dayKey(o.createdAt) <= to)
         );
       }),
-    [data, search, status, standard, division, staff, method, from, to],
+    [data, search, status, standard, division, staff, method, source, from, to],
   );
   const clear = () => {
     setSearch("");
@@ -72,10 +75,11 @@ export default function Orders() {
     setDivision("");
     setStaff("");
     setMethod("");
+    setSource("");
     setFrom("");
     setTo("");
   };
-  useEffect(() => setSelected(new Set()), [search, status, standard, division, staff, method, from, to, admin]);
+  useEffect(() => setSelected(new Set()), [search, status, standard, division, staff, method, source, from, to, admin]);
   useEffect(() => {
     setSelected((previous) => {
       const next = new Set(rows.filter((order) => previous.has(order.id) && !order.deletedAt).map((order) => order.id));
@@ -106,6 +110,7 @@ export default function Orders() {
     "Last edited by",
     "Order items: दर पाव किलो (250 ग्रॅम); प्रमाण kg; किंमत रुपये",
     "Order record ID",
+    "Order source",
   ];
   const exportRows = rows.map((o) => {
     const s =
@@ -115,7 +120,7 @@ export default function Orders() {
       s?.name ?? "",
       o.customerName,
       o.customerPhone,
-      s?.standard ?? "",
+      isStallOrder(o) ? "Stall" : s?.standard ?? "",
       s?.division ?? "",
       o.createdAt,
       orderTotal(o),
@@ -135,6 +140,7 @@ export default function Orders() {
         )
         .join("; "),
       o.id,
+      orderSourceLabel(o),
     ];
   });
   const exportCSV = () =>
@@ -225,6 +231,9 @@ export default function Orders() {
             onChange={setSearch}
           />
           <div className="filter-actions">
+            <select aria-label="Filter order source" value={source} onChange={event => setSource(event.target.value)}>
+              <option value="">All order sources</option><option value="Student">Student orders</option><option value="Stall">Stall orders</option>
+            </select>
             <select
               aria-label="Filter by status"
               value={status}
@@ -245,6 +254,7 @@ export default function Orders() {
               division ||
               staff ||
               method ||
+              source ||
               from ||
               to) && (
               <Button variant="ghost" onClick={clear}>

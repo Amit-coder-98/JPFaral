@@ -146,6 +146,7 @@ export class MockRepository implements FrontendRepository {
       throw new Error("Select an active demo staff account.");
     if (
       status !== "Draft" &&
+      clean.studentId &&
       !this.state.students.some((s) => s.id === clean.studentId)
     )
       throw new Error("The student was not found.");
@@ -162,6 +163,7 @@ export class MockRepository implements FrontendRepository {
     const timestamp = now();
     const order: Order = {
       ...clean,
+      ...(!clean.studentId ? { studentSnapshot: undefined } : {}),
       utr: clean.paymentMethod === "Cash" ? "" : clean.utr.trim(),
       id: previous?.id ?? crypto.randomUUID(),
       number: previous?.number ?? nextReceiptNumber(this.state.orders),

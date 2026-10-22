@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { selectProduct, productQuantity } from "../e2e/helpers/orderProducts";
 
 // UI integration with simulated service responses. Actual Auth/RLS behavior is
 // covered separately by database tests and still needs hosted-project acceptance.
@@ -105,6 +106,45 @@ async function login(page: Page) {
     .getByRole("button", { name: "Sign in to workspace", exact: true })
     .click();
 }
+test("staff can save consecutive Stall orders through the Supabase adapter with distinct request IDs and NULL student rows",async({page})=>{
+  await service(page,"staff");
+  const products=[{id:"stall-product",name:"मोतीचूर लाडू",price_per_kg:"440.00",active:true,category:"Sweet",description:""}];
+  const orders:Record<string,unknown>[]=[],items:Record<string,unknown>[]=[], requests=new Set<string>();
+  for(const [table,rows] of [["products",products],["orders",orders],["order_items",items]] as const)
+    await page.route(`https://fixture.supabase.co/rest/v1/${table}*`,route=>route.fulfill({contentType:"application/json",body:JSON.stringify(rows)}));
+  await page.route("https://fixture.supabase.co/rest/v1/rpc/save_order",async route=>{
+    const body=route.request().postDataJSON(), data=body.p_input;
+    expect(data.studentId).toBe(""); expect(data.collectorType).toBe("Customer");
+    expect(body.p_id).toBe(null); expect(body.p_status).toBe("Confirmed");
+    expect(body).not.toHaveProperty("actor"); expect(data.advance).toBe(0);
+    expect(requests.has(body.p_request_id)).toBe(false); requests.add(body.p_request_id);
+    const orderId=`b1111111-1111-4111-8111-${String(orders.length+1).padStart(12,"0")}`;
+    orders.push({id:orderId,order_number:`JP-000${orders.length+1}`,receipt_number:`JP-000${orders.length+1}`,version:1,status:"Confirmed",
+      student_id:null,student_name:"",student_standard:"",student_division:"",customer_name:data.customerName,customer_phone:data.customerPhone,
+      total_amount:"110.00",collection_date:data.collectionDate,collector_type:"Customer",collector_name:data.collectorName,
+      created_by:id,updated_by:id,created_at:new Date().toISOString(),updated_at:new Date().toISOString(),deleted_at:null});
+    items.push({id:`item-${orders.length}`,order_id:orderId,product_id:"stall-product",product_name:products[0].name,price_per_kg:"440.00",quantity_kg:"0.25",position:0});
+    return route.fulfill({contentType:"application/json",body:JSON.stringify(orderId)});
+  });
+  await login(page);
+  await page.getByRole("link",{name:"Create Order",exact:true}).click();
+  for(const name of ["First direct customer","Second direct customer"]) {
+    await page.getByRole("button",{name:"Stall",exact:true}).click();
+    await page.getByLabel("Customer name",{exact:false}).fill(name);
+    await page.getByLabel("Customer phone number",{exact:false}).fill("9876543210");
+    await selectProduct(page,"stall-product"); await productQuantity(page,"stall-product").fill("0.25");
+    await page.getByRole("button",{name:"Save order",exact:true}).last().click();
+    if(name.startsWith("First")) await page.getByRole("button",{name:"Create another",exact:true}).click();
+    else await page.getByRole("button",{name:"View order",exact:true}).click();
+  }
+  await expect(page.locator(".bill")).toContainText("Direct customer order");
+  await expect(page.locator(".bill .balance")).toContainText("₹110.00");
+  await page.reload();
+  await expect(page.locator(".bill")).toContainText("Direct customer order");
+  await page.getByRole("link",{name:"Orders",exact:true}).click();
+  await page.getByLabel("Filter order source").selectOption("Stall");
+  await expect(page.locator("tbody tr")).toHaveCount(2); expect(requests.size).toBe(2);
+});
 test("missing configuration blocks the workspace without fictional records", async ({
   page,
 }) => {

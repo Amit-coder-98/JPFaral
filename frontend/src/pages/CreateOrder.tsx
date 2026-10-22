@@ -27,6 +27,7 @@ import { Bill } from "../components/orders/Bill";
 import { OrderTable } from "../components/orders/OrderTable";
 import { ProductChecklist } from "../components/orders/ProductChecklist";
 import { PaymentDialog } from "../components/orders/PaymentDialog";
+import { isStallOrder } from "../utils/orderSource";
 import { divisions } from "../data/reference";
 import { orderSchema, quantitySchema } from "../services/validation";
 import { rateMoney } from "../utils/pricing";
@@ -81,7 +82,7 @@ export default function CreateOrder() {
   const { id } = useParams();
   const [params] = useSearchParams();
   const { data, user, repository, toast, isMock } = useApp();
-  const [requestId] = useState(() => crypto.randomUUID());
+  const [requestId, setRequestId] = useState(() => crypto.randomUUID());
   const navigate = useNavigate();
   const original = data.orders.find((o) => o.id === id);
   const selectedInitial = data.students.find(
@@ -100,8 +101,9 @@ export default function CreateOrder() {
           }
         : blankOrder(),
   );
-  const [standard, setStandard] = useState(selectedInitial?.standard ?? "");
-const [division, setDivision] = useState(selectedInitial?.division ?? "");
+  const [standard, setStandard] = useState(original && isStallOrder(original) ? "Stall" : selectedInitial?.standard ?? "");
+  const [division, setDivision] = useState(selectedInitial?.division ?? "");
+  const stall = standard === "Stall";
   const [studentSearch, setStudentSearch] = useState("");
   const [studentOpen, setStudentOpen] = useState(false);
   const [studentIndex, setStudentIndex] = useState(0);
@@ -191,12 +193,15 @@ const [division, setDivision] = useState(selectedInitial?.division ?? "");
       return Object.keys(invalid).length === 0;
     }
     const result = orderSchema.safeParse(form);
+    const next: Record<string, string> = {};
+    if (!stall && !form.studentId) next.studentId = "Select a student or choose Stall for a direct order";
     if (!result.success) {
-      const next: Record<string, string> = {};
       result.error.issues.forEach((issue) => {
         const path = issue.path.join(".");
         if (!next[path]) next[path] = issue.message;
       });
+    }
+    if (Object.keys(next).length) {
       setErrors(next);
       toast("Please check the highlighted order details.", true);
       setTimeout(
@@ -291,12 +296,12 @@ const [division, setDivision] = useState(selectedInitial?.division ?? "");
         <div className="order-form-main">
           <FormSection
             step="01"
-            title="Find the student"
-            description="The student who brought this order."
+            title="Order source"
+            description="Choose a student, or Stall for walk-in customers and people outside the student directory."
             icon={UserRound}
           >
             <div className="field-label">
-              Select standard <span className="required">*</span>
+              Select standard or Stall <span className="required">*</span>
             </div>
             <div className="standard-buttons">
               {Object.keys(divisions).map((s) => (
@@ -307,14 +312,22 @@ const [division, setDivision] = useState(selectedInitial?.division ?? "");
                     setStandard(s);
                     setDivision("");
                     resetStudent();
+                    if (stall) setForm(f => ({...f,collectorType:"Student",collectorName:""}));
                   }}
                   aria-pressed={standard === s}
                 >
                   {s}
                 </button>
               ))}
+              <button type="button" className={stall ? "selected" : ""} aria-pressed={stall}
+                onClick={() => {
+                  setStandard("Stall"); setDivision(""); resetStudent();
+                  if (!stall) setForm(f => ({...f,studentId:"",customerName:"",customerPhone:"",collectorType:"Customer",collectorName:""}));
+                  setErrors(e => ({...e,studentId:"",customerName:"",customerPhone:"",collectorName:""}));
+                }}>Stall</button>
             </div>
-            {standard && (
+            {stall && <div className="info-box stall-order-notice"><ShoppingBag size={18} /><span><strong>Stall / direct order</strong><br />Enter the customer's name and phone below. A school standard, division and saved student are not required.</span></div>}
+            {standard && !stall && (
               <>
                 <div className="field-label spaced">
                   Select division <span className="required">*</span>
@@ -631,7 +644,7 @@ const [division, setDivision] = useState(selectedInitial?.division ?? "");
                     }));
                   }}
                 >
-                  <option>Student</option>
+                  {!stall && <option>Student</option>}
                   <option>Customer</option>
                 </select>
               </Field>
@@ -690,9 +703,9 @@ const [division, setDivision] = useState(selectedInitial?.division ?? "");
           <div className="summary-student">
             <UserRound size={18} />
             <div>
-              <strong>{student?.name ?? "Select a student"}</strong>
+              <strong>{stall ? "Stall / direct order" : student?.name ?? "Select a student"}</strong>
               <span>
-                {student
+                {stall ? form.customerName || "Enter customer details" : student
                   ? `${student.standard} · ${student.division}`
                   : "Start with their standard & division"}
               </span>
@@ -800,7 +813,7 @@ const [division, setDivision] = useState(selectedInitial?.division ?? "");
                     variant="secondary"
                     onClick={() => {
                       const s = data.students.find((s) => s.id === o.studentId);
-                      if (s) chooseStudent(s);
+                      if (s && !stall) chooseStudent(s);
                       setForm((f) => ({
                         ...f,
                         customerName: o.customerName,
@@ -904,8 +917,9 @@ const [division, setDivision] = useState(selectedInitial?.division ?? "");
               setSaved(null);
               navigate("/orders/new");
               if (!id) {
-                setForm(blankOrder());
-                setStandard("");
+                setRequestId(crypto.randomUUID());
+                setForm({...blankOrder(),collectorType:stall ? "Customer" : "Student"});
+                setStandard(stall ? "Stall" : "");
                 setDivision("");
               }
             }}

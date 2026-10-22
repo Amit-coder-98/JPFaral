@@ -6,6 +6,7 @@ import type { Order } from "../../types";
 import { activeOrderSerials, balance, orderTotal } from "../../utils/calculations";
 import { date, money } from "../../utils/format";
 import { orderStatusLabel } from "../../utils/orderStatus";
+import { isStallOrder } from "../../utils/orderSource";
 export function OrderTable({
   orders,
   compact = false,
@@ -47,7 +48,7 @@ export function OrderTable({
       render: (o) => (
         <div className="cell-stack">
           <strong>{o.customerName || "Draft customer"}</strong>
-          <span>{student(o)?.name ?? "Student not selected"}</span>
+          <span>{isStallOrder(o) ? "Stall / direct order" : student(o)?.name ?? "Student not selected"}</span>
         </div>
       ),
     },
@@ -61,11 +62,11 @@ export function OrderTable({
           {
             key: "standard",
             label: "Standard & division",
-            value: (o: Order) => student(o)?.standard ?? "",
+            value: (o: Order) => isStallOrder(o) ? "Stall" : student(o)?.standard ?? "",
             render: (o: Order) => (
               <div className="cell-stack">
-                <strong>{student(o)?.standard ?? "—"}</strong>
-                <span>{student(o)?.division ?? "—"}</span>
+                <strong>{isStallOrder(o) ? "Stall" : student(o)?.standard ?? "—"}</strong>
+                <span>{isStallOrder(o) ? "Direct order" : student(o)?.division ?? "—"}</span>
               </div>
             ),
           },

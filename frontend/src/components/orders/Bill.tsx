@@ -6,6 +6,7 @@ import { date, dateTime, money } from "../../utils/format";
 import { balance, lineTotal, orderTotal } from "../../utils/calculations";
 import { rateMoney } from "../../utils/pricing";
 import { sortCatalogue } from "../../utils/catalogue";
+import { isStallOrder } from "../../utils/orderSource";
 export function Bill({ order }: { order: Order }) {
   const { data, isMock } = useApp();
   const student =
@@ -41,10 +42,10 @@ export function Bill({ order }: { order: Order }) {
           <span>{order.customerPhone}</span>
         </div>
         <div>
-          <span className="eyebrow">BROUGHT BY STUDENT</span>
-          <strong>{student?.name ?? "Not selected"}</strong>
+          <span className="eyebrow">{isStallOrder(order) ? "ORDER SOURCE" : "BROUGHT BY STUDENT"}</span>
+          <strong>{isStallOrder(order) ? "Stall" : student?.name ?? "Not selected"}</strong>
           <span>
-            {student?.standard} · {student?.division}
+            {isStallOrder(order) ? "Direct customer order" : `${student?.standard ?? ""} · ${student?.division ?? ""}`}
           </span>
         </div>
         <div>

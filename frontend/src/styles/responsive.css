@@ -292,6 +292,8 @@
 .product-checklist .item-unselected .quantity-input { opacity: .55; }
 .product-checklist .quantity-input { flex-direction: row; align-items: center; }
 .quantity-unit { flex: 0 0 auto; font-size: 13px; color: var(--muted); padding-inline: 4px; }
+.stall-order-notice { margin-top: 20px; align-items: flex-start; }
+.stall-order-notice svg { flex: 0 0 auto; }
 .order-edit-payment { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-bottom: 20px; }
 .order-edit-payment > span { flex: 1 1 260px; min-width: 0; }
 .order-edit-payment small { display: block; margin-top: 6px; }

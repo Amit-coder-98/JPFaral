@@ -15,7 +15,7 @@ export const phoneSchema = z
   .regex(/^\d{10}$/, "Enter a 10-digit phone number");
 export const orderSchema = z
   .object({
-    studentId: z.string().min(1, "Select a student"),
+    studentId: z.string(),
     customerName: z
       .string()
       .trim()
@@ -50,6 +50,8 @@ export const orderSchema = z
       .max(120),
   })
   .superRefine((o, ctx) => {
+    if (!o.studentId && o.collectorType === "Student")
+      ctx.addIssue({code:"custom",path:["studentId"],message:"Select a student or choose Stall for a direct order"});
     if (orderTotal(o) > MAX_ORDER_TOTAL)
       ctx.addIssue({
         code: "custom",

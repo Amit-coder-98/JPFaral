@@ -1,5 +1,15 @@
 # Order selection, collection checkout and student standings
 
+## Stall / direct orders — 22 October 2026
+
+In Create Order, choose **Stall** immediately after **10th** for customers and students outside the saved directory. Enter the actual customer name and 10-digit phone number. Standard, division and saved-student selection are omitted. The collector defaults to Customer and follows the customer name; adjust the collector name if someone else will collect. Use the existing product checklist, quarter-kg quantities, advances, later payments, bills and collection settlement. **Create another** keeps Stall selected, clears customer details and assigns a fresh save request ID for each new order.
+
+Stall drafts retain their source when resumed. Editing a saved Stall order preserves its receipt, version checks and immutable payment records. All Orders has **All order sources / Student orders / Stall orders**; search, CSV/Excel exports, order details and printed bills identify direct orders. Reports includes a Stall order-count category. Overall sales, daily cash/online receipts and the cooking plan include these orders; school/division summaries and student gift rankings exclude unassigned direct orders.
+
+The existing database already permits `orders.student_id = NULL` with a Customer collector. The adapter sends an empty student ID, and the transactional save function stores NULL and empty school snapshots. No placeholder student or invented school division is created. PostgreSQL still validates customer details, numeric totals, active actors and payment rules. **This feature requires only the updated frontend; there is no new migration, RPC or RLS change.** Native PostgreSQL tests cover saving, retries, drafts, editing, clearing a previous school association and collection without a student.
+
+## Student orders and collection
+
 The 16 October 2026 update preserves the existing UI and Marathi rate card. Products are selected from a searchable checkbox list. Only checked products have enabled quantity inputs and are saved. Quantities are entered in kg, in positive 0.25 kg increments; PostgreSQL remains authoritative for numeric totals and the existing 30-product limit.
 
 Orders now follow Draft → Confirmed → Collected. Open a confirmed order and choose **Collect order**. The dialog displays the total, net payments already received and the remaining amount. Record the actual remaining payment as Cash or Online (UTR required), then confirm handover. Partial receipts remain available through **Record payment**; collection requires a zero remaining balance. Fully paid orders require handover confirmation without creating another payment.

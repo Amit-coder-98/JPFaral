@@ -1,5 +1,11 @@
 ﻿# Implementation and verification
 
+## Stall orders — 22 October 2026
+
+Added **Stall** after **10th** in order entry for direct customers and unlisted students. It uses required customer/phone details and the existing customer collection, payment and receipt workflow without creating a student. Orders can be filtered by source; bills, exports and reports identify Stall. Shared sales, payments and kitchen demand include direct orders while class/division statistics and student gift standings remain limited to school orders. Drafts and subsequent edits retain the source. Consecutive orders use distinct idempotency request IDs through **Create another**.
+
+The existing nullable student FK and transactional save function already support these orders. No schema, function, RLS or production migration is changed. Verification passed: **76 backend tests, 142 frontend unit tests, 39 order/payment/responsive browser scenarios across verification runs, 10 simulated Supabase browser checks and the production build**. Stall coverage includes required contacts, NULL student snapshots, draft resumption, clearing school attribution, immutable payment edits, final settlement, complete filtered exports, phone layout and distinct request IDs for consecutive orders. Tests use local native PostgreSQL, fictional mock records and simulated Supabase responses; no client business records are changed by tests.
+
 ## Missed advances on an existing order — 21 October 2026
 
 The confirmed-order editor now shows **Total received (recorded)** and an **Add advance / payment** action next to it. The action opens the existing authorized payment workflow for the same order UUID and receipt. Only the additional payment amount is entered; old receipts remain immutable, the remaining balance is recalculated, and successful recording returns to the updated bill. With no unsaved order changes, no order-save RPC is sent. If details or quantities have changed, the action becomes **Save changes & add payment** and validates/saves those changes first; stale edits cannot be silently rebased. Cancelling the payment keeps the editor open and adds no receipt; explicitly saved order changes remain saved.

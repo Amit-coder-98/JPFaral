@@ -13,6 +13,7 @@ import { dateTime, money } from "../utils/format";
 import { paymentAmount } from "../utils/calculations";
 import { CollectionDialog } from "../components/orders/CollectionDialog";
 import { PaymentDialog } from "../components/orders/PaymentDialog";
+import { orderSourceLabel } from "../utils/orderSource";
 export default function OrderDetails() {
   const { id } = useParams();
   const { data, user, isMock } = useApp();
@@ -72,6 +73,7 @@ export default function OrderDetails() {
           description="The people and details behind this order."
         >
           <dl className="detail-list">
+            <div><dt>Order source</dt><dd>{orderSourceLabel(order)}</dd></div>
             <div>
               <dt>Created by</dt>
               <dd>{name(order.createdBy)}</dd>

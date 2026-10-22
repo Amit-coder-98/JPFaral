@@ -15,6 +15,7 @@ import { money, date, dayKey } from "../utils/format";
 import { downloadCSV } from "../utils/export";
 import { divisions } from "../data/reference";
 import { sortCatalogue } from "../utils/catalogue";
+import { isStallOrder, orderSourceLabel } from "../utils/orderSource";
 export default function Reports() {
   const { data } = useApp();
   const [from, setFrom] = useState("");
@@ -41,12 +42,11 @@ export default function Reports() {
           : date(d.day);
     grouped.set(key, (grouped.get(key) ?? 0) + d.sales);
   });
-  const byStandard = Object.keys(divisions).map((name) => ({
+  const byStandard = [...Object.keys(divisions), "Stall"].map((name) => ({
     name,
     value: orders.filter(
       (o) =>
-        (o.studentSnapshot ?? data.students.find((s) => s.id === o.studentId))
-          ?.standard === name,
+        name === "Stall" ? isStallOrder(o) : (o.studentSnapshot ?? data.students.find((s) => s.id === o.studentId))?.standard === name,
     ).length,
   }));
   const byDivision = (
@@ -102,6 +102,7 @@ export default function Reports() {
                     "Received",
                     "Outstanding",
                     "Status",
+                    "Order source",
                   ],
                   orders.map((o) => [
                     o.number,
@@ -111,6 +112,7 @@ export default function Reports() {
                     o.advance,
                     balance(o),
                     orderStatusLabel(o.status),
+                    orderSourceLabel(o),
                   ]),
                 )
               }
