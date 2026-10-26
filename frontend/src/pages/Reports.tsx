@@ -16,6 +16,7 @@ import { downloadCSV } from "../utils/export";
 import { divisions } from "../data/reference";
 import { sortCatalogue } from "../utils/catalogue";
 import { isStallOrder, orderSourceLabel } from "../utils/orderSource";
+import { otherStandards } from "../utils/otherStudents";
 export default function Reports() {
   const { data } = useApp();
   const [from, setFrom] = useState("");
@@ -42,16 +43,14 @@ export default function Reports() {
           : date(d.day);
     grouped.set(key, (grouped.get(key) ?? 0) + d.sales);
   });
-  const byStandard = [...Object.keys(divisions), "Stall"].map((name) => ({
+  const byStandard = [...otherStandards,...Object.keys(divisions), "Stall"].map((name) => ({
     name,
     value: orders.filter(
       (o) =>
         name === "Stall" ? isStallOrder(o) : (o.studentSnapshot ?? data.students.find((s) => s.id === o.studentId))?.standard === name,
     ).length,
   }));
-  const byDivision = (
-    standard ? divisions[standard] : Object.values(divisions).flat()
-  ).map((name) => ({
+  const byDivision = [...new Set([...(standard ? divisions[standard] ?? [] : Object.values(divisions).flat()),...data.students.filter(student=>!standard || student.standard===standard).map(student=>student.division)])].filter(Boolean).map((name) => ({
     name,
     value: orders.filter(
       (o) =>
@@ -112,7 +111,7 @@ export default function Reports() {
                     o.advance,
                     balance(o),
                     orderStatusLabel(o.status),
-                    orderSourceLabel(o),
+                    orderSourceLabel(o,data.students),
                   ]),
                 )
               }
@@ -246,7 +245,7 @@ export default function Reports() {
                 onChange={(e) => setStandard(e.target.value)}
               >
                 <option value="">All standards</option>
-                {Object.keys(divisions).map((s) => (
+                {[...otherStandards,...Object.keys(divisions)].map((s) => (
                   <option key={s}>{s}</option>
                 ))}
               </select>
@@ -259,7 +258,7 @@ export default function Reports() {
             description="Open balances, grouped by standard."
           >
             <BreakdownChart
-              data={Object.keys(divisions).map((name) => ({
+              data={[...otherStandards,...Object.keys(divisions)].map((name) => ({
                 name,
                 value: orders
                   .filter(

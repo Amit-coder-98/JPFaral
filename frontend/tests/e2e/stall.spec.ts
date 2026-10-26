@@ -17,7 +17,7 @@ async function save(page: Page) {
 
 test("Stall follows 10th, requires real contact details, and appears on the bill and complete filtered export",async({page})=>{
   await page.goto("/orders/new");
-  await expect(page.locator(".standard-buttons button")).toHaveText(["5th","6th","7th","8th","9th","10th","Stall"]);
+  await expect(page.locator(".standard-buttons button")).toHaveText(["5th","6th","7th","8th","9th","10th","Stall","Others"]);
   await page.getByRole("button",{name:"Stall",exact:true}).click();
   await expect(page.getByRole("combobox",{name:"Search student"})).toHaveCount(0);
   await expect(page.locator(".division-buttons")).toHaveCount(0);

@@ -73,7 +73,7 @@ export default function OrderDetails() {
           description="The people and details behind this order."
         >
           <dl className="detail-list">
-            <div><dt>Order source</dt><dd>{orderSourceLabel(order)}</dd></div>
+            <div><dt>Order source</dt><dd>{orderSourceLabel(order,data.students)}</dd></div>
             <div>
               <dt>Created by</dt>
               <dd>{name(order.createdBy)}</dd>

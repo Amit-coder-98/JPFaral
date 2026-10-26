@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { FrontendRepository } from "./contracts";
+import { validateOtherStudent, type OtherStudentInput } from "../utils/otherStudents";
 import { validateOrderDeletion, type OrderDeletionInput } from "../utils/orderDeletion";
 import type {
   AppState,
@@ -274,7 +275,7 @@ export class SupabaseRepository implements FrontendRepository {
         name: str(s.name),
         phone: str(s.phone),
         standard: str(s.standard),
-        division: str(divisions.find((d) => d.id === s.division_id)?.name),
+        division: s.division_id == null ? str(s.other_division) : str(divisions.find((d) => d.id === s.division_id)?.name),
       })),
       staff: profiles.map((p) => ({
         id: str(p.id),
@@ -417,6 +418,20 @@ export class SupabaseRepository implements FrontendRepository {
       if (error) throw new Error(error.message);
     }
     await this.refresh();
+  }
+  async saveOtherStudent(input: OtherStudentInput, _actor: string) {
+    const student = validateOtherStudent(input);
+    const {data:id,error} = await this.api().rpc("save_other_student", {
+      p_name:student.name,p_standard:student.standard,p_division:student.division,p_phone:student.phone || null,
+    });
+    if (error) {
+      if (error.code === "PGRST202") throw new Error("Others needs database migration 202610260001_other_students.sql. Ask the administrator to apply it, then refresh.");
+      throw new Error(error.message);
+    }
+    await this.refresh();
+    const saved = this.state.students.find(value => value.id === id);
+    if (!saved) throw new Error("Student was saved, but records could not be refreshed. Refresh before retrying.");
+    return saved;
   }
   async importStudents(
     students: Student[],

@@ -19,6 +19,7 @@ import {
 } from "../components/ui";
 import { OrderTable } from "../components/orders/OrderTable";
 import { divisions } from "../data/reference";
+import { otherStandards } from "../utils/otherStudents";
 import {
   validateImport,
   reportDivisions,
@@ -167,7 +168,7 @@ export default function Students() {
           {new Set(data.students.map((s) => `${s.standard}|${s.division}`)).size} divisions
         </span>
         <span className="directory-note">
-          {isMock ? "Fictional demo records" : "Reviewed student directory"}
+          {isMock ? "Fictional demo records" : "Shared student directory"}
         </span>
       </div>
       <Panel>
@@ -188,7 +189,7 @@ export default function Students() {
               }}
             >
               <option value="">All standards</option>
-              {Object.keys(divisions).map((s) => (
+              {[...otherStandards,...Object.keys(divisions)].map((s) => (
                 <option key={s}>{s}</option>
               ))}
             </select>
@@ -198,10 +199,7 @@ export default function Students() {
               onChange={(e) => setDivision(e.target.value)}
             >
               <option value="">All divisions</option>
-              {(standard
-                ? divisions[standard]
-                : Object.values(divisions).flat()
-              ).map((d) => (
+              {[...new Set([...(standard ? divisions[standard] ?? [] : Object.values(divisions).flat()),...data.students.filter(student=>!standard || student.standard===standard).map(student=>student.division)])].filter(Boolean).map((d) => (
                 <option key={d} value={d}>
                   {d} ({data.students.filter((s) => s.division === d && (!standard || s.standard === standard)).length})
                 </option>
@@ -251,7 +249,7 @@ export default function Students() {
               render: (s) => (
                 <div className="cell-stack">
                   <strong>{s.standard}</strong>
-                  <span>{s.division}</span>
+                  <span>{s.division || "Not provided"}</span>
                 </div>
               ),
             },

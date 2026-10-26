@@ -9,6 +9,7 @@ import pg from "pg";
 import { buildStudentDivisionRepairSql } from "../maintenance/studentDivisionRepair.mjs";
 import { collectionCases } from "./collectionCases.mjs";
 import { receiptNumberCases } from "./receiptNumberCases.mjs";
+import { otherStudentCases } from "./otherStudentCases.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const admin = randomUUID(),
@@ -25,6 +26,7 @@ const testCleanupName = "202610140003_test_order_cleanup.sql";
 const collectionName = "202610160001_collection_checkout.sql";
 const receiptName = "202610160002_reusable_receipt_numbers.sql";
 const revisedRateName = "202610210001_nutritious_laddu_rate.sql";
+const othersName = "202610260001_other_students.sql";
 const collectionSql = () => fs.readFile(path.join(root, "supabase/migrations", collectionName), "utf8");
 const testCleanupSql = () => fs.readFile(path.join(root, "supabase/migrations", testCleanupName), "utf8");
 const deletionOverrideSql = () => fs.readFile(path.join(root, "supabase/migrations", deletionOverrideName), "utf8");
@@ -175,7 +177,7 @@ before(
     for (const name of (
       await fs.readdir(path.join(root, "supabase/migrations"))
     )
-      .filter((n) => n.endsWith(".sql") && n !== upgradeName && n !== deletionName && n !== deletionOverrideName && n !== testCleanupName && n !== collectionName && n !== receiptName && n !== revisedRateName)
+      .filter((n) => n.endsWith(".sql") && n !== upgradeName && n !== deletionName && n !== deletionOverrideName && n !== testCleanupName && n !== collectionName && n !== receiptName && n !== revisedRateName && n !== othersName)
       .sort()) {
       try {
         await pool.query(
@@ -1403,3 +1405,6 @@ test("Stall drafts resume without a student while customer validation and school
   await save(direct,staff,school,(await row(school)).version);
   for(const key of ["student_name","student_standard","student_division"]) assert.equal((await row(school))[key],"");
 });
+
+otherStudentCases({test,assert,db:()=>pool,admin,staff,inactive,studentId,asUser,save,input,row,pay,
+  migration:()=>fs.readFile(path.join(root,"supabase/migrations",othersName),"utf8")});

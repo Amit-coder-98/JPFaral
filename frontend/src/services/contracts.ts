@@ -11,6 +11,7 @@ import type {
   Student,
 } from "../types";
 type Result<T> = T | Promise<T>;
+import type { OtherStudentInput } from "../utils/otherStudents";
 import type { OrderDeletionInput } from "../utils/orderDeletion";
 export interface FrontendRepository {
   readonly mode: "mock" | "supabase";
@@ -27,6 +28,7 @@ export interface FrontendRepository {
     requestId?: string,
   ): Result<Order>;
   saveProduct(product: Product, actor: string): Result<void>;
+  saveOtherStudent(student: OtherStudentInput, actor: string): Result<Student>;
   saveStaff(user: StaffUser, actor: string): Result<void>;
   saveProfile(name: string, email: string, actor: string): Result<void>;
   importStudents(

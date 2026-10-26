@@ -17,6 +17,7 @@ import { now } from "../utils/format";
 import { moneyInPaise, rateMoney } from "../utils/pricing";
 import { orderSchema, quantitySchema } from "./validation";
 import type { FrontendRepository } from "./contracts";
+import { isOtherStandard, normalizeStudentName, validateOtherStudent, type OtherStudentInput } from "../utils/otherStudents";
 export class MockRepository implements FrontendRepository {
   readonly mode = "mock";
   private state: AppState;
@@ -161,9 +162,11 @@ export class MockRepository implements FrontendRepository {
     if (previous && previous.status !== "Draft" && clean.advance !== previous.advance)
       throw new Error("Existing receipts are immutable. Record another payment instead.");
     const timestamp = now();
+    const selectedStudent = this.state.students.find(student => student.id === clean.studentId);
     const order: Order = {
       ...clean,
-      ...(!clean.studentId ? { studentSnapshot: undefined } : {}),
+      studentSnapshot: previous?.studentId === clean.studentId && previous.studentSnapshot
+        ? previous.studentSnapshot : selectedStudent ? {name:selectedStudent.name,standard:selectedStudent.standard,division:selectedStudent.division} : undefined,
       utr: clean.paymentMethod === "Cash" ? "" : clean.utr.trim(),
       id: previous?.id ?? crypto.randomUUID(),
       number: previous?.number ?? nextReceiptNumber(this.state.orders),
@@ -384,6 +387,21 @@ export class MockRepository implements FrontendRepository {
         `${exists ? "Updated" : "Created"} demo account for ${user.name}`,
       ),
     );
+  }
+  saveOtherStudent(input: OtherStudentInput, actor: string) {
+    if (!this.state.staff.some(user => user.id === actor && user.active)) throw new Error("An active authorized account is required.");
+    const clean = validateOtherStudent(input);
+    const matches = this.state.students.filter(student => isOtherStandard(student.standard) && student.standard === clean.standard
+      && normalizeStudentName(student.name).toLocaleLowerCase() === clean.name.toLocaleLowerCase() && student.division.trim().toLocaleLowerCase() === clean.division.toLocaleLowerCase());
+    const exact = matches.find(student => student.phone === clean.phone);
+    if (exact) return exact;
+    if (!clean.phone && matches.length > 1) throw new Error("More than one student has this name. Select the correct saved student using their phone and class.");
+    if (!clean.phone && matches.length === 1) return matches[0];
+    const absentPhone = clean.phone ? matches.find(student => !student.phone) : undefined;
+    const student = absentPhone ? {...absentPhone,phone:clean.phone} : {...clean,id:crypto.randomUUID()};
+    this.commit(this.log({...this.state,students:absentPhone ? this.state.students.map(value=>value.id===student.id ? student : value) : [...this.state.students,student]},
+      actor,absentPhone ? "Edited" : "Created","Student",student.name,`${absentPhone ? "Updated" : "Saved"} Others student (${student.standard})`));
+    return student;
   }
   importStudents(students: Student[], actor: string) {
     this.commit(

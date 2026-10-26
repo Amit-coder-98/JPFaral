@@ -1,5 +1,7 @@
 # JPfaral frontend
 
+**26 October 2026:** **Others** follows **Stall** for saved 1st–4th students. Enter a name/class, optional division and optional student phone, then **Save student & use**. Future orders can select the same student from name autocomplete. The dashboard has junior class totals and separate Stall/Others counts. Customer phones remain required on orders. This feature needs the new [Others migration and release steps](../backend/OTHERS_STUDENTS.md).
+
 **22 October 2026:** Choose **Stall**, immediately after **10th**, to take an order from a walk-in customer or someone outside the saved student directory. Enter the customer name and 10-digit phone, select products and continue with the usual payment and collection details. Stall has its own Orders filter and appears on bills/exports. These orders count toward sales, payments and cooking demand; school class totals and gift rankings remain student-only. No new database migration is needed. See the [order workflow](../backend/ORDER_WORKFLOW_UPDATE.md).
 
 **21 October 2026:** To record a forgotten advance, open the same order → **Edit order** → **Add advance / payment**. Enter only the additional amount received. The receipt number stays the same, the balance updates and previous payment records remain intact. If other order details changed, **Save changes & add payment** saves those edits first. This fix needs no new database migration. See the [order/payment workflow](../backend/ORDER_WORKFLOW_UPDATE.md).

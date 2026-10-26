@@ -1,5 +1,13 @@
 ﻿# Implementation and verification
 
+## Saved Others students and source totals — 26 October 2026
+
+Added Others after Stall for manually registered 1st–4th students, with optional student phone/division, saved-name autocomplete and reuse of one permanent student ID across orders. New students share the directory without changing the reviewed senior assignments. Orders, bills, exports and reports retain class details and identify Others. The dashboard includes junior classes, saved junior students in the sales leaderboard, and separate Stall/Others source totals and filters.
+
+New forward-only `202610260001_other_students.sql` adds a checked junior representation, a narrow actor-verified identity RPC and a snapshot trigger for new/changed junior associations. Direct student writes, senior imports and financial operations keep their existing authorization. No historical rows are backfilled and no existing financial RPC definition is replaced. The production migration remains operator-controlled; see [OTHERS_STUDENTS.md](OTHERS_STUDENTS.md).
+
+Verification passed: **83 backend tests, 147 frontend unit tests, 41 order/payment/responsive browser scenarios across verification runs, 13 simulated Supabase browser checks across runs and the production build**. The linked dry run lists only this new migration; it was not applied. Coverage includes normalized/concurrent identity reuse, optional phones, namesake disambiguation, immutable historical snapshots, staff authorization, repeat orders, draft resumption, separate source totals, student standings, phone layouts, CSV/Excel content and a delayed save after switching modes. A cancelled Excel-download regression was reproduced and fixed by generating a typed workbook Blob through the shared browser download helper; both historical and Others exports pass the actual file-content checks.
+
 ## Stall orders — 22 October 2026
 
 Added **Stall** after **10th** in order entry for direct customers and unlisted students. It uses required customer/phone details and the existing customer collection, payment and receipt workflow without creating a student. Orders can be filtered by source; bills, exports and reports identify Stall. Shared sales, payments and kitchen demand include direct orders while class/division statistics and student gift standings remain limited to school orders. Drafts and subsequent edits retain the source. Consecutive orders use distinct idempotency request IDs through **Create another**.

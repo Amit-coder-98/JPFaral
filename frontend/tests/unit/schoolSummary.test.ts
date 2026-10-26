@@ -12,7 +12,7 @@ const order = (studentId:string, quantity=1, overrides:Partial<Order>={}): Order
 describe("school division dashboard and gift standings",()=>{
   it("counts every division, directory students, distinct sellers, collections, drafts and pending money",()=>{
     const summary=schoolSummary(students,[order("a",0.25),order("a",0.5,{status:"Collected",advance:220}),order("b",1),order("b",10,{status:"Draft"}),order("b",100,{deletedAt:"2026-10-16"})]);
-    expect(summary.classes).toHaveLength(12);
+    expect(summary.classes).toHaveLength(16);
     expect(summary.classes.find(row=>row.division==="Devi Padmini")).toMatchObject({students:1,sellers:1,orders:2,awaiting:1,collected:1,sales:330,received:320,pending:10,drafts:0});
     expect(summary.classes.find(row=>row.division==="Rana Pratap")).toMatchObject({students:2,sellers:1,orders:1,drafts:1,sales:440,pending:340});
     expect(summary.leaders.map(row=>row.student.id)).toEqual(["b","a"]);

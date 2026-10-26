@@ -27,6 +27,7 @@ import { rateMoney } from "../utils/pricing";
 import { money, dayKey, today } from "../utils/format";
 import { sortCatalogue } from "../utils/catalogue";
 import { isStallOrder, orderSourceLabel } from "../utils/orderSource";
+import { otherStandards } from "../utils/otherStudents";
 import { downloadCSV, downloadExcel } from "../utils/export";
 export default function Orders() {
   const { data, toast, user } = useApp();
@@ -53,7 +54,7 @@ export default function Orders() {
         const s =
           o.studentSnapshot ?? data.students.find((s) => s.id === o.studentId);
         return (
-          `${o.number} ${o.customerName} ${o.customerPhone} ${s?.name ?? ""} ${orderSourceLabel(o)}`
+          `${o.number} ${o.customerName} ${o.customerPhone} ${s?.name ?? ""} ${orderSourceLabel(o,data.students)}`
             .toLowerCase()
             .includes(search.toLowerCase()) &&
           (!status || orderStatusLabel(o.status) === status) &&
@@ -61,7 +62,7 @@ export default function Orders() {
           (!division || s?.division === division) &&
           (!staff || o.createdBy === staff) &&
           (!method || o.paymentMethod === method) &&
-          (!source || orderSourceLabel(o) === source) &&
+          (!source || orderSourceLabel(o,data.students) === source) &&
           (!from || dayKey(o.createdAt) >= from) &&
           (!to || dayKey(o.createdAt) <= to)
         );
@@ -140,7 +141,7 @@ export default function Orders() {
         )
         .join("; "),
       o.id,
-      orderSourceLabel(o),
+      orderSourceLabel(o,data.students),
     ];
   });
   const exportCSV = () =>
@@ -232,7 +233,7 @@ export default function Orders() {
           />
           <div className="filter-actions">
             <select aria-label="Filter order source" value={source} onChange={event => setSource(event.target.value)}>
-              <option value="">All order sources</option><option value="Student">Student orders</option><option value="Stall">Stall orders</option>
+              <option value="">All order sources</option><option value="Student">5th–10th student orders</option><option value="Stall">Stall orders</option><option value="Others">Others (1st–4th)</option>
             </select>
             <select
               aria-label="Filter by status"
@@ -275,7 +276,7 @@ export default function Orders() {
                 }}
               >
                 <option value="">All standards</option>
-                {Object.keys(divisions).map((s) => (
+                {[...otherStandards,...Object.keys(divisions)].map((s) => (
                   <option key={s}>{s}</option>
                 ))}
               </select>
@@ -286,10 +287,7 @@ export default function Orders() {
                 onChange={(e) => setDivision(e.target.value)}
               >
                 <option value="">All divisions</option>
-                {(standard
-                  ? divisions[standard]
-                  : Object.values(divisions).flat()
-                ).map((d) => (
+                {[...new Set([...(standard ? divisions[standard] ?? [] : Object.values(divisions).flat()),...data.students.filter(student=>!standard || student.standard===standard).map(student=>student.division)])].filter(Boolean).map((d) => (
                   <option key={d}>{d}</option>
                 ))}
               </select>

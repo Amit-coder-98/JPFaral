@@ -14,14 +14,19 @@ export function downloadCSV(
   headers: string[],
   rows: (string | number)[][],
 ) {
-  const url = URL.createObjectURL(
-    new Blob([csvText(headers, rows)], { type: "text/csv;charset=utf-8;" }),
-  );
+  downloadBlob(filename,new Blob([csvText(headers, rows)], { type: "text/csv;charset=utf-8;" }));
+}
+function downloadBlob(filename:string,blob:Blob) {
+  const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
+  a.hidden = true;
+  document.body.append(a);
   a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  a.remove();
+  // Give the browser time to start reading the download, including on phones.
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 export async function downloadExcel(
   filename: string,
@@ -41,5 +46,6 @@ export async function downloadExcel(
   }));
   const workbook = xlsx.utils.book_new();
   xlsx.utils.book_append_sheet(workbook, sheet, "Orders");
-  xlsx.writeFileXLSX(workbook, filename);
+  const buffer = xlsx.write(workbook,{bookType:"xlsx",type:"array"});
+  downloadBlob(filename,new Blob([buffer],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
 }

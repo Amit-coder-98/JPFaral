@@ -145,6 +145,102 @@ test("staff can save consecutive Stall orders through the Supabase adapter with 
   await page.getByLabel("Filter order source").selectOption("Stall");
   await expect(page.locator("tbody tr")).toHaveCount(2); expect(requests.size).toBe(2);
 });
+test("staff save and reuse an Others student through Supabase, with optional student phone and persisted junior snapshots",async({page})=>{
+  await service(page,"staff");
+  const students:Record<string,unknown>[]=[],orders:Record<string,unknown>[]=[],items:Record<string,unknown>[]= [];
+  const juniorId="c1111111-1111-4111-8111-111111111111";
+  let studentCalls=0;
+  const product={id:"junior-product",name:"मोतीचूर लाडू",price_per_kg:"440.00",active:true,category:"Sweet",description:""};
+  for(const [table,rows] of [["students",students],["orders",orders],["order_items",items],["products",[product]]] as const)
+    await page.route(`https://fixture.supabase.co/rest/v1/${table}*`,route=>route.fulfill({contentType:"application/json",body:JSON.stringify(rows)}));
+  await page.route("https://fixture.supabase.co/rest/v1/rpc/save_other_student",async route=>{
+    const body=route.request().postDataJSON();
+    expect(body).toEqual({p_name:"Persistent junior",p_standard:"3rd",p_division:"A",p_phone:null});
+    studentCalls++;
+    students.push({id:juniorId,name:body.p_name,standard:"3rd",division_id:null,other_division:"A",phone:null});
+    return route.fulfill({contentType:"application/json",body:JSON.stringify(juniorId)});
+  });
+  await page.route("https://fixture.supabase.co/rest/v1/rpc/save_order",async route=>{
+    const body=route.request().postDataJSON(),data=body.p_input;
+    expect(data.studentId).toBe(juniorId);expect(data.customerPhone).toBe("9876543210");expect(body).not.toHaveProperty("actor");
+    const orderId=`d1111111-1111-4111-8111-${String(orders.length+1).padStart(12,"0")}`;
+    orders.push({id:orderId,order_number:`JP-000${orders.length+1}`,version:1,status:"Confirmed",student_id:juniorId,
+      student_name:"Persistent junior",student_standard:"3rd",student_division:"A",customer_name:data.customerName,customer_phone:data.customerPhone,
+      total_amount:"220.00",collection_date:data.collectionDate,collector_type:"Student",collector_name:data.collectorName,
+      created_by:id,updated_by:id,created_at:new Date().toISOString(),updated_at:new Date().toISOString(),deleted_at:null});
+    items.push({id:`junior-item-${orders.length}`,order_id:orderId,product_id:product.id,product_name:product.name,price_per_kg:"440.00",quantity_kg:"0.50",position:1});
+    return route.fulfill({contentType:"application/json",body:JSON.stringify(orderId)});
+  });
+  await login(page);
+  for(let turn=0;turn<2;turn++) {
+    await page.getByRole("link",{name:"Create Order",exact:true}).click();
+    await page.getByRole("button",{name:"Others",exact:true}).click();
+    const name=page.getByRole("combobox",{name:"Others student name",exact:false});
+    await name.fill("Persistent junior");
+    if(turn===0) {
+      await page.getByLabel("Others standard",{exact:false}).selectOption("3rd");
+      await page.getByLabel("Others division (optional)",{exact:false}).fill("A");
+      await page.getByRole("button",{name:"Save student & use",exact:true}).click();
+    } else await page.getByRole("listbox").getByRole("option").click();
+    await expect(page.getByLabel("Student phone (optional)",{exact:false})).toHaveValue("");
+    await expect(page.getByLabel("Others standard",{exact:false})).toHaveValue("3rd");
+    await page.getByLabel("Customer phone number",{exact:false}).fill("9876543210");
+    await selectProduct(page,product.id);await productQuantity(page,product.id).fill("0.5");
+    await page.getByRole("button",{name:"Save order",exact:true}).last().click();
+    await page.getByRole("button",{name:"View order",exact:true}).click();
+    await expect(page.locator(".bill")).toContainText("OTHERS");
+    await expect(page.locator(".bill")).toContainText("3rd · A");
+    await page.reload();await expect(page.locator(".bill")).toContainText("Persistent junior");
+  }
+  expect(studentCalls).toBe(1);expect(students).toHaveLength(1);expect(orders).toHaveLength(2);
+  await page.getByRole("link",{name:"Dashboard",exact:true}).click();
+  await expect(page.locator(".order-source-totals").getByRole("button",{name:/Others/})).toContainText("2 orders");
+  await expect(page.locator(".order-source-totals").getByRole("button",{name:/Others/})).toContainText("1 student");
+});
+
+test("an older backend clearly requests the Others migration and leaves the existing order modes available",async({page})=>{
+  await service(page,"staff");
+  await page.route("https://fixture.supabase.co/rest/v1/rpc/save_other_student",route=>route.fulfill({status:404,contentType:"application/json",body:JSON.stringify({code:"PGRST202",message:"Function not found"})}));
+  await login(page);
+  await page.getByRole("link",{name:"Create Order",exact:true}).click();
+  await page.getByRole("button",{name:"Others",exact:true}).click();
+  await page.getByRole("combobox",{name:"Others student name",exact:false}).fill("New junior");
+  await page.getByLabel("Others standard",{exact:false}).selectOption("1st");
+  await page.getByRole("button",{name:"Save student & use",exact:true}).click();
+  await expect(page.getByRole("alert")).toContainText("202610260001_other_students.sql");
+  await expect(page.locator(".selected-student")).toHaveCount(0);
+  await page.getByRole("button",{name:"Stall",exact:true}).click();
+  await expect(page.locator(".stall-order-notice")).toBeVisible();
+  await page.getByRole("button",{name:"5th",exact:true}).click();
+  await expect(page.getByRole("button",{name:"Devi Padmini",exact:true})).toBeVisible();
+});
+
+test("a slow Others save keeps a later Stall selection when the student response arrives",async({page})=>{
+  await service(page,"staff");
+  const juniorId="e1111111-1111-4111-8111-111111111111",students:Record<string,unknown>[]= [];
+  await page.route("https://fixture.supabase.co/rest/v1/students*",route=>route.fulfill({contentType:"application/json",body:JSON.stringify(students)}));
+  let release:()=>void=()=>{};
+  const pending=new Promise<void>(resolve=>{release=resolve;});
+  await page.route("https://fixture.supabase.co/rest/v1/rpc/save_other_student",async route=>{
+    await pending;
+    students.push({id:juniorId,name:"Slow junior",standard:"1st",division_id:null,other_division:"",phone:null});
+    return route.fulfill({contentType:"application/json",body:JSON.stringify(juniorId)});
+  });
+  await login(page);
+  await page.getByRole("link",{name:"Create Order",exact:true}).click();
+  await page.getByRole("button",{name:"Others",exact:true}).click();
+  await page.getByRole("combobox",{name:"Others student name",exact:false}).fill("Slow junior");
+  await page.getByLabel("Others standard",{exact:false}).selectOption("1st");
+  const request=page.waitForRequest("https://fixture.supabase.co/rest/v1/rpc/save_other_student");
+  await page.getByRole("button",{name:"Save student & use",exact:true}).click();await request;
+  await page.getByRole("button",{name:"Stall",exact:true}).click();
+  const refreshed=page.waitForResponse(response=>response.url().includes("/rest/v1/students"));
+  release();await refreshed;
+  await expect(page.getByRole("button",{name:"Stall",exact:true})).toHaveAttribute("aria-pressed","true");
+  await expect(page.locator(".selected-student")).toHaveCount(0);
+  await expect(page.getByLabel("Customer name",{exact:false})).toHaveValue("");
+});
+
 test("missing configuration blocks the workspace without fictional records", async ({
   page,
 }) => {

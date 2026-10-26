@@ -27,6 +27,8 @@ import { Bill } from "../components/orders/Bill";
 import { OrderTable } from "../components/orders/OrderTable";
 import { ProductChecklist } from "../components/orders/ProductChecklist";
 import { PaymentDialog } from "../components/orders/PaymentDialog";
+import { OtherStudentForm } from "../components/orders/OtherStudentForm";
+import { isOtherStandard } from "../utils/otherStudents";
 import { isStallOrder } from "../utils/orderSource";
 import { divisions } from "../data/reference";
 import { orderSchema, quantitySchema } from "../services/validation";
@@ -101,9 +103,11 @@ export default function CreateOrder() {
           }
         : blankOrder(),
   );
-  const [standard, setStandard] = useState(original && isStallOrder(original) ? "Stall" : selectedInitial?.standard ?? "");
-  const [division, setDivision] = useState(selectedInitial?.division ?? "");
+  const [standard, setStandard] = useState(original && isStallOrder(original) ? "Stall" : isOtherStandard(selectedInitial?.standard) ? "Others" : selectedInitial?.standard ?? "");
+  const [division, setDivision] = useState(isOtherStandard(selectedInitial?.standard) ? "" : selectedInitial?.division ?? "");
   const stall = standard === "Stall";
+  const others = standard === "Others";
+  const [otherFormKey,setOtherFormKey] = useState(0);
   const [studentSearch, setStudentSearch] = useState("");
   const [studentOpen, setStudentOpen] = useState(false);
   const [studentIndex, setStudentIndex] = useState(0);
@@ -154,8 +158,8 @@ export default function CreateOrder() {
     );
   };
   const chooseStudent = (s: Student) => {
-    setStandard(s.standard);
-    setDivision(s.division);
+    setStandard(isOtherStandard(s.standard) ? "Others" : s.standard);
+    setDivision(isOtherStandard(s.standard) ? "" : s.division);
     setForm((f) => ({
       ...f,
       studentId: s.id,
@@ -194,7 +198,7 @@ export default function CreateOrder() {
     }
     const result = orderSchema.safeParse(form);
     const next: Record<string, string> = {};
-    if (!stall && !form.studentId) next.studentId = "Select a student or choose Stall for a direct order";
+    if (!stall && !form.studentId) next.studentId = others ? "Select a saved Others student, or save the student details first." : "Select a student or choose Stall for a direct order";
     if (!result.success) {
       result.error.issues.forEach((issue) => {
         const path = issue.path.join(".");
@@ -257,6 +261,7 @@ export default function CreateOrder() {
   };
   const previewOrder: Order = {
     ...form,
+    studentSnapshot: student ? {name:student.name,standard:student.standard,division:student.division} : undefined,
     id: original?.id ?? "preview",
     number: billNumber,
     status: original?.status ?? "Confirmed",
@@ -297,11 +302,11 @@ export default function CreateOrder() {
           <FormSection
             step="01"
             title="Order source"
-            description="Choose a student, or Stall for walk-in customers and people outside the student directory."
+            description="Choose a saved class, Stall for direct customers, or Others for 1st–4th standard students."
             icon={UserRound}
           >
             <div className="field-label">
-              Select standard or Stall <span className="required">*</span>
+              Select standard or order source <span className="required">*</span>
             </div>
             <div className="standard-buttons">
               {Object.keys(divisions).map((s) => (
@@ -325,9 +330,17 @@ export default function CreateOrder() {
                   if (!stall) setForm(f => ({...f,studentId:"",customerName:"",customerPhone:"",collectorType:"Customer",collectorName:""}));
                   setErrors(e => ({...e,studentId:"",customerName:"",customerPhone:"",collectorName:""}));
                 }}>Stall</button>
+              <button type="button" className={others ? "selected" : ""} aria-pressed={others}
+                onClick={()=>{
+                  if(others) return;
+                  setStandard("Others");setDivision("");resetStudent();
+                  if(!others) setForm(current=>({...current,studentId:"",customerName:"",customerPhone:"",collectorType:"Student",collectorName:""}));
+                  setErrors(current=>({...current,studentId:"",customerName:"",customerPhone:"",collectorName:""}));
+                }}>Others</button>
             </div>
             {stall && <div className="info-box stall-order-notice"><ShoppingBag size={18} /><span><strong>Stall / direct order</strong><br />Enter the customer's name and phone below. A school standard, division and saved student are not required.</span></div>}
-            {standard && !stall && (
+            {others && <OtherStudentForm key={otherFormKey} selected={student} onSelect={chooseStudent} onClear={resetStudent}/>}
+            {standard && !stall && !others && (
               <>
                 <div className="field-label spaced">
                   Select division <span className="required">*</span>
@@ -349,7 +362,7 @@ export default function CreateOrder() {
                 </div>
               </>
             )}
-            {division && (
+            {!others && division && (
               <div className="autocomplete">
                 <Field label="Search student" error={errors.studentId} required>
                   <div className="search-input">
@@ -445,7 +458,7 @@ export default function CreateOrder() {
                 <div>
                   <strong>{student.name}</strong>
                   <span>
-                    {student.phone} · {student.standard} · {student.division}
+                    {[student.phone,student.standard,student.division].filter(Boolean).join(" · ")}
                   </span>
                 </div>
                 <Button variant="ghost" onClick={() => setHistory(true)}>
@@ -703,11 +716,11 @@ export default function CreateOrder() {
           <div className="summary-student">
             <UserRound size={18} />
             <div>
-              <strong>{stall ? "Stall / direct order" : student?.name ?? "Select a student"}</strong>
+              <strong>{stall ? "Stall / direct order" : student?.name ?? (others ? "Add / select an Others student" : "Select a student")}</strong>
               <span>
                 {stall ? form.customerName || "Enter customer details" : student
-                  ? `${student.standard} · ${student.division}`
-                  : "Start with their standard & division"}
+                  ? [student.standard,student.division].filter(Boolean).join(" · ")
+                  : others ? "1st–4th standard" : "Start with their standard & division"}
               </span>
             </div>
           </div>
@@ -813,7 +826,7 @@ export default function CreateOrder() {
                     variant="secondary"
                     onClick={() => {
                       const s = data.students.find((s) => s.id === o.studentId);
-                      if (s && !stall) chooseStudent(s);
+                      if (s && !stall && (!others || isOtherStandard(s.standard))) chooseStudent(s);
                       setForm((f) => ({
                         ...f,
                         customerName: o.customerName,
@@ -918,8 +931,9 @@ export default function CreateOrder() {
               navigate("/orders/new");
               if (!id) {
                 setRequestId(crypto.randomUUID());
+                setOtherFormKey(value=>value+1);
                 setForm({...blankOrder(),collectorType:stall ? "Customer" : "Student"});
-                setStandard(stall ? "Stall" : "");
+                setStandard(stall ? "Stall" : others ? "Others" : "");
                 setDivision("");
               }
             }}
