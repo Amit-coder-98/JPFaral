@@ -14,6 +14,7 @@ import {
 } from "../components/ui";
 import { dateTime, initials, now } from "../utils/format";
 import type { StaffUser } from "../types";
+import { validateCreateUser } from "../utils/userAccounts";
 export default function Staff() {
   const { data, user, repository, toast, isMock } = useApp();
   const [search, setSearch] = useState("");
@@ -21,17 +22,21 @@ export default function Staff() {
   const [toggle, setToggle] = useState<StaffUser | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [password,setPassword] = useState("");
+  const [confirmPassword,setConfirmPassword] = useState("");
   const existingAccount = !!editing && data.staff.some((s) => s.id === editing.id);
+  const closeEditor=()=>{setEditing(null);setPassword("");setConfirmPassword("");setError("");};
   const save = async () => {
     if (busy) return;
     setBusy(true);
     try {
-      await repository.saveStaff(editing!, user!.id);
-      setEditing(null);
+      if(existingAccount) await repository.saveStaff(editing!,user!.id);
+      else await repository.createStaff(validateCreateUser({name:editing!.name,email:editing!.email,role:editing!.role,password,confirmPassword}),user!.id);
+      closeEditor();
       toast(
         isMock
           ? "Demo staff account saved."
-          : "Staff account saved. New members receive an invitation email.",
+          : existingAccount ? "User profile updated." : "User created. They can now sign in with their email and password.",
       );
     } catch (e) {
       setError((e as Error).message);
@@ -47,8 +52,10 @@ export default function Staff() {
         description="Manage team access and invite users to enter orders."
         actions={
           <Button
+            disabled={busy}
             onClick={() => {
               setError("");
+              setPassword("");setConfirmPassword("");
               setEditing({
                 id: crypto.randomUUID(),
                 name: "",
@@ -60,7 +67,7 @@ export default function Staff() {
             }}
           >
             <Plus size={17} />
-            Add staff member
+            Create user
           </Button>
         }
       />
@@ -169,6 +176,7 @@ export default function Staff() {
                     className="icon-button"
                     aria-label={`Edit ${s.name}`}
                     onClick={() => {
+                      setPassword("");setConfirmPassword("");
                       setEditing({ ...s });
                       setError("");
                     }}
@@ -190,18 +198,15 @@ export default function Staff() {
       </Panel>
       <Modal
         open={!!editing}
-        onClose={() => setEditing(null)}
+        onClose={()=>{if(!busy)closeEditor();}}
         title={
           editing && data.staff.some((s) => s.id === editing.id)
             ? "Edit staff profile"
-            : isMock
-              ? "Create a demo staff account"
-              : "Invite a staff member"
+            : "Create user"
         }
         description={
-          isMock
-            ? "Individual account details for this frontend workspace."
-            : "New staff receive an email to set their password. Existing account email changes require confirmation from the account holder."
+          existingAccount ? "Update this user's name and access."
+            : "Set their login credentials and access. New users can sign in immediately."
         }
       >
         {editing && (
@@ -211,8 +216,9 @@ export default function Staff() {
               save();
             }}
           >
-            <Field label="Full name" required>
+            <Field label="User name" required>
               <input
+                disabled={busy}
                 value={editing.name}
                 onChange={(e) =>
                   setEditing({ ...editing, name: e.target.value })
@@ -224,6 +230,7 @@ export default function Staff() {
             </Field>
             <Field label="Email address" required>
               <input
+                disabled={busy}
                 type="email"
                 readOnly={
                   !isMock && data.staff.some((s) => s.id === editing.id)
@@ -235,12 +242,18 @@ export default function Staff() {
                 required
               />
             </Field>
-            <Field label="Role" hint={!isMock && !existingAccount
-              ? "New users start as Data Entry Staff. An administrator can change their role after invitation."
-              : undefined}>
+            {!existingAccount && <>
+              <Field label="Password" required hint="Use at least 12 characters.">
+                <input type="password" autoComplete="new-password" required minLength={12} maxLength={72} disabled={busy} value={password} onChange={event=>{setPassword(event.target.value);setError("");}} />
+              </Field>
+              <Field label="Confirm password" required>
+                <input type="password" autoComplete="new-password" required minLength={12} maxLength={72} disabled={busy} value={confirmPassword} onChange={event=>{setConfirmPassword(event.target.value);setError("");}} />
+              </Field>
+            </>}
+            <Field label="User type">
               <select
+                disabled={busy}
                 value={editing.role}
-                disabled={!isMock && !existingAccount}
                 onChange={(e) =>
                   setEditing({
                     ...editing,
@@ -249,12 +262,10 @@ export default function Staff() {
                 }
               >
                 <option>Data Entry Staff</option>
-                {(isMock || data.staff.some((s) => s.id === editing.id)) && (
-                  <option>Super Admin</option>
-                )}
+                <option value="Super Admin">Admin</option>
               </select>
             </Field>
-            {(isMock || existingAccount) && <label className="checkbox-label">
+            {existingAccount && <label className="checkbox-label">
               <input
                 type="checkbox"
                 checked={editing.active}
@@ -270,11 +281,11 @@ export default function Staff() {
               </p>
             )}
             <div className="modal-actions">
-              <Button variant="secondary" onClick={() => setEditing(null)}>
+              <Button variant="secondary" disabled={busy} onClick={closeEditor}>
                 Cancel
               </Button>
               <Button type="submit" loading={busy}>
-                {isMock ? "Save account" : existingAccount ? "Save changes" : "Send invitation"}
+                {existingAccount ? "Save changes" : "Create user"}
               </Button>
             </div>
           </form>

@@ -8,6 +8,7 @@ import type {
   Product,
   Settings,
   StaffUser,
+  CreateUserInput,
   Student,
 } from "../types";
 type Result<T> = T | Promise<T>;
@@ -30,6 +31,7 @@ export interface FrontendRepository {
   saveProduct(product: Product, actor: string): Result<void>;
   saveOtherStudent(student: OtherStudentInput, actor: string): Result<Student>;
   saveStaff(user: StaffUser, actor: string): Result<void>;
+  createStaff(input: CreateUserInput, actor: string): Result<void>;
   saveProfile(name: string, email: string, actor: string): Result<void>;
   importStudents(
     students: Student[],

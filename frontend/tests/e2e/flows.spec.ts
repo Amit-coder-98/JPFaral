@@ -577,12 +577,14 @@ test("product price changes preserve old bills and affect new rows", async ({
 });
 test("staff management, role navigation and demo login", async ({ page }) => {
   await page.goto("/staff");
-  await page.getByRole("button", { name: "Add staff member" }).click();
-  await page.getByLabel("Full name", { exact: false }).fill("Demo Staff");
+  await page.getByRole("button", { name: "Create user",exact:true }).click();
+  await page.getByLabel("User name", { exact: false }).fill("Demo Staff");
   await page
     .getByLabel("Email address", { exact: false })
     .fill("staff@jpfaral.demo");
-  await page.getByRole("button", { name: "Save account" }).click();
+  await page.getByLabel(/^Password/).fill("Demo@JPfaral1");
+  await page.getByLabel("Confirm password",{exact:false}).fill("Demo@JPfaral1");
+  await page.getByRole("dialog").getByRole("button", { name: "Create user",exact:true }).click();
   await expect(page.locator("tbody")).toContainText("Demo Staff");
   await page.getByLabel("Demo role").selectOption("Data Entry Staff");
   await expect(

@@ -1,5 +1,11 @@
 ﻿# Implementation and verification
 
+## Direct administrator-created accounts — 30 October 2026
+
+Staff Management now uses **Create user** with User name, Email address, Password, Confirm password and User type (Admin or Data Entry Staff). Active Super Admins create email-confirmed accounts directly, with no invitation or SMTP dependency. The protected Edge handler verifies Auth and the current administrator profile before calling Auth Admin, validates credentials independently, and provisions either permitted role through the existing actor-checked database RPC. Duplicate emails cannot overwrite an account; failed provisioning compensates only the newly created identity and reports cleanup failures accurately. The old invitation operation is retired. Passwords never enter profile records, workspace state, responses, audit events or notifications. The form clears them on completion/cancellation, and existing profile edits do not change passwords.
+
+Verification passed: **90 backend tests, 150 frontend unit tests, four staff/form browser scenarios across runs, 16 simulated Supabase browser checks, Deno type checking and the production build**. Both roles, mismatches, duplicates, ordinary/inactive-user denial, self-admin safeguards, safe error responses, cleanup, cancelled/reopened forms and phone layout are covered. The nine owner-requested accounts had their passwords changed using the requested name-based format, and all nine logins/active staff roles were verified. Private credentials remain in an access-restricted ignored directory. The production `APP_ORIGIN` correction was verified; `manage-staff` was deployed with JWT verification intact. No database migration or financial-policy change is required.
+
 ## Saved Others students and source totals — 26 October 2026
 
 Added Others after Stall for manually registered 1st–4th students, with optional student phone/division, saved-name autocomplete and reuse of one permanent student ID across orders. New students share the directory without changing the reviewed senior assignments. Orders, bills, exports and reports retain class details and identify Others. The dashboard includes junior classes, saved junior students in the sales leaderboard, and separate Stall/Others source totals and filters.

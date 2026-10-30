@@ -8,6 +8,7 @@ import type {
   Product,
   Settings,
   StaffUser,
+  CreateUserInput,
   Student,
   PaymentInput,
   CollectionInput,
@@ -18,6 +19,7 @@ import { moneyInPaise, rateMoney } from "../utils/pricing";
 import { orderSchema, quantitySchema } from "./validation";
 import type { FrontendRepository } from "./contracts";
 import { isOtherStandard, normalizeStudentName, validateOtherStudent, type OtherStudentInput } from "../utils/otherStudents";
+import { validateCreateUser } from "../utils/userAccounts";
 export class MockRepository implements FrontendRepository {
   readonly mode = "mock";
   private state: AppState;
@@ -351,6 +353,11 @@ export class MockRepository implements FrontendRepository {
         `Updated ${product.name} · ${rateMoney(product.price)} / 250 ग्रॅम`,
       ),
     );
+  }
+  createStaff(input:CreateUserInput,actor:string) {
+    if(!this.state.staff.some(user=>user.id===actor&&user.active&&user.role==="Super Admin"))throw new Error("An active Super Admin account is required.");
+    const {name,email,role}=validateCreateUser(input);
+    this.saveStaff({id:crypto.randomUUID(),name,email,role,active:true,lastActivity:now()},actor);
   }
   saveStaff(user: StaffUser, actor: string) {
     if (!user.name.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user.email))

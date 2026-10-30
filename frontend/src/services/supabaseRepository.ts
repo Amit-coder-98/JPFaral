@@ -12,9 +12,11 @@ import type {
   Product,
   Settings,
   StaffUser,
+  CreateUserInput,
   Student,
   AuditLog,
 } from "../types";
+import { validateCreateUser } from "../utils/userAccounts";
 
 export const emptyState = (): AppState => ({
   students: [],
@@ -388,16 +390,23 @@ export class SupabaseRepository implements FrontendRepository {
   }
   async saveStaff(user: StaffUser, _actor: string) {
     const exists = this.state.staff.some((s) => s.id === user.id);
-    const { data, error } = await this.api().functions.invoke("manage-staff", {
-      body: {
-        operation: exists ? "update" : "invite",
-        id: exists ? user.id : undefined,
+    if(!exists)throw new Error("Use Create user to add an account with a password.");
+    await this.manageStaff({
+        operation: "update",
+        id: user.id,
         name: user.name,
         email: user.email,
         role: user.role === "Super Admin" ? "super_admin" : "staff",
         active: user.active,
-      },
     });
+  }
+  async createStaff(input:CreateUserInput,_actor:string) {
+    const user=validateCreateUser(input);
+    await this.manageStaff({operation:"create",name:user.name,email:user.email,password:user.password,confirmPassword:user.confirmPassword,
+      role:user.role==="Super Admin" ? "super_admin" : "staff",active:true});
+  }
+  private async manageStaff(body:Row) {
+    const {data,error}=await this.api().functions.invoke("manage-staff",{body});
     if (error || data?.error) {
       let message = data?.error ?? error?.message;
       if (error && "context" in error && error.context instanceof Response) {

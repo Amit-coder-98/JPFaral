@@ -1,5 +1,7 @@
 # JPfaral frontend
 
+**30 October 2026:** **Staff Management → Create user** now creates a password-based account directly. Enter User name, Email address, Password, Confirm password and User type (**Admin** or **Data Entry Staff**). Only active Super Admins can create users; new users can sign in immediately without invitations. Passwords require at least 12 characters and matching confirmation. Deploy the matching `manage-staff` function before using the new form; no new database migration is needed.
+
 **26 October 2026:** **Others** follows **Stall** for saved 1st–4th students. Enter a name/class, optional division and optional student phone, then **Save student & use**. Future orders can select the same student from name autocomplete. The dashboard has junior class totals and separate Stall/Others counts. Customer phones remain required on orders. This feature needs the new [Others migration and release steps](../backend/OTHERS_STUDENTS.md).
 
 **22 October 2026:** Choose **Stall**, immediately after **10th**, to take an order from a walk-in customer or someone outside the saved student directory. Enter the customer name and 10-digit phone, select products and continue with the usual payment and collection details. Stall has its own Orders filter and appears on bills/exports. These orders count toward sales, payments and cooking demand; school class totals and gift rankings remain student-only. No new database migration is needed. See the [order workflow](../backend/ORDER_WORKFLOW_UPDATE.md).
@@ -93,11 +95,11 @@ The Marathi rate-card migration is already applied to the linked project. Before
 
 ## Connected workflows
 
-Login/logout, persisted session restoration, invitation/recovery password setup, current-password verification, confirmed email changes, and active-account checks use Supabase Auth. Credentials are never placed in notifications or audit events.
+Login/logout, persisted session restoration, password recovery/setup, current-password verification, confirmed email changes, and active-account checks use Supabase Auth. Credentials are never placed in notifications or audit events.
 
 Order creation uses one transactional RPC for its header, historical item snapshots, advance receipt, and audit events. The database allocates bill numbers and calculates decimal totals. Version checks reject stale edits. Existing receipts are immutable: use **Record payment** for partial receipts or administrator refunds. The ledger drives received amounts, balances, dashboards, reports, and exports. Orders follow Draft → Confirmed → Collected. **Collect order** shows payments already received and records the exact outstanding balance with handover in one transaction. Fully prepaid orders need only handover confirmation; no duplicate receipt is created. Collection requires full payment, and collected orders cannot be edited. Historical Ready rows remain stored unchanged and display as Confirmed.
 
-Super Admins manage products, organization settings, reviewed imports, and staff invitations. Staff can update their own profile and display preferences, work with shared records, and view their limited activity summary. Detailed before/after audit records remain administrator-only. Server checks enforce these permissions independently of navigation.
+Super Admins manage products, organization settings, reviewed imports, and direct user creation. Staff can update their own profile and display preferences, work with shared records, and view their limited activity summary. Detailed before/after audit records remain administrator-only. Server checks enforce these permissions independently of navigation.
 
 Super Admins can remove test/mistaken orders from **All Orders** using the trash icon or row checkboxes followed by **Delete selected**. Select-all applies to administrator rows on the current page; selections persist across pages and clear when filters change. Each confirmation previews the selected orders and requires a reason. The backend accepts up to 100 distinct, versioned targets in one atomic request. Collected test/mistaken orders require an extra confirmation checkbox. Ordinary deletion requires received money to be fully refunded first. Paid test entries can instead be archived with the explicit confirmation that no real money was received; their immutable transactions remain in **Payments → Test history**. A blocked single-delete dialog provides a link to review the order.
 
@@ -123,11 +125,11 @@ The dashboard shows operational totals, awaiting collections, school-wide class/
 
 `tests/e2e/scrolling.spec.ts` checks list pagination on laptops, tablets and phones, complete directory traversal, resizing, sorting, filters, empty results, all catalogue pages and navigation scroll reset.
 
-## Staff access for local testing
+## Create users
 
-The two requested staff accounts have been created in the linked project as active **Data Entry Staff**. Their one-time setup links are kept privately in `../backend/supabase/.temp/staff-local-setup.html`, outside the frontend and ignored by Git. Open that file in a browser on this computer while JPfaral runs at `http://127.0.0.1:5173`. Sign out of the administrator account, let each named user set their own password (at least twelve characters), and then sign in using their email. No invitation emails or passwords were assigned by this local setup. The links expire according to Auth settings; do not publish the file.
+Open **Staff Management → Create user**, enter the full/display name and email (the login username), set and confirm a password, choose **Admin** or **Data Entry Staff**, then choose **Create user**. Admin maps to the existing Super Admin role. The new account is active and email-confirmed by the verified administrator's action. No invitation email is sent. Passwords are submitted only to the protected function and are not retained in staff records, workspace snapshots, audit events or notifications. Closing a completed/cancelled form clears its password fields.
 
-For future users, open **Staff Management → Add staff member**, enter the full name and email, and select **Send invitation**. New invitations create Data Entry Staff. Existing accounts can be managed by a Super Admin. Configure the public application URL, permitted Auth redirects, Edge `APP_ORIGIN` and working SMTP when deploying; verify actual delivery and password setup before sharing access from other devices.
+Existing profile edits retain the current email-confirmation rules and do not reset passwords. Duplicate emails return a clear conflict. Staff cannot create accounts or choose their own role through the API. The previous local invitation-link setup is historical; new accounts use this direct form. Configure Edge `APP_ORIGIN` to the exact production site. SMTP remains relevant to password recovery and secure email changes, rather than account creation.
 
 ## Verification and deployment
 

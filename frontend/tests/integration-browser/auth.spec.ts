@@ -66,6 +66,7 @@ async function service(page: Page, role = "super_admin") {
                 role,
                 active,
                 preferences: {},
+                updated_at: "2026-10-11T10:00:00Z",
               },
             ]
           : table === "organization_settings"
@@ -239,6 +240,45 @@ test("a slow Others save keeps a later Stall selection when the student response
   await expect(page.getByRole("button",{name:"Stall",exact:true})).toHaveAttribute("aria-pressed","true");
   await expect(page.locator(".selected-student")).toHaveCount(0);
   await expect(page.getByLabel("Customer name",{exact:false})).toHaveValue("");
+});
+
+for(const role of ["staff","super_admin"]) test(`direct user creation sends password credentials and chosen ${role} role through the protected function`,async({page})=>{
+  await service(page);
+  const profiles:Record<string,unknown>[]=[{id,full_name:"Test Member",email:"member@test.invalid",role:"super_admin",active:true,preferences:{},updated_at:"2026-10-11T10:00:00Z"}];
+  await page.route("https://fixture.supabase.co/rest/v1/profiles*",route=>route.fulfill({contentType:"application/json",body:JSON.stringify(route.request().headers().accept?.includes("object")?profiles[0]:profiles)}));
+  const accountId="f1111111-1111-4111-8111-111111111111";let creates=0,updates=0;
+  await page.route("https://fixture.supabase.co/functions/v1/manage-staff",route=>{
+    const body=route.request().postDataJSON();expect(body).not.toHaveProperty("actor");
+    if(body.operation==="create"){
+      expect(body).toEqual({operation:"create",name:"Direct User",email:"direct@test.invalid",password:"Example@JPfaral",confirmPassword:"Example@JPfaral",role,active:true});
+      creates++;profiles.push({id:accountId,full_name:body.name,email:body.email,role,active:true,preferences:{},updated_at:"2026-10-30T10:00:00Z"});
+      return route.fulfill({status:201,contentType:"application/json",body:JSON.stringify({id:accountId,created:true})});
+    }
+    expect(body.operation).toBe("update");expect(body.id).toBe(accountId);expect(body).not.toHaveProperty("password");expect(body).not.toHaveProperty("confirmPassword");
+    updates++;profiles[1].full_name=body.name;
+    return route.fulfill({contentType:"application/json",body:JSON.stringify({updated:true})});
+  });
+  await login(page);await page.locator('nav a[href="/staff"]').click();
+  await page.getByRole("button",{name:"Create user",exact:true}).click();
+  const dialog=page.getByRole("dialog");await expect(dialog).not.toContainText(/invitation/i);
+  await page.getByLabel("User name",{exact:false}).fill("Direct User");await page.getByLabel("Email address",{exact:false}).fill("direct@test.invalid");
+  await page.getByLabel(/^Password/).fill("Example@JPfaral");await page.getByLabel("Confirm password",{exact:false}).fill("Different@JPfaral");
+  await dialog.getByRole("button",{name:"Create user",exact:true}).click();await expect(dialog.getByRole("alert")).toContainText("Passwords do not match");expect(creates).toBe(0);
+  await page.getByLabel("Confirm password",{exact:false}).fill("Example@JPfaral");await page.getByLabel("User type").selectOption(role==="super_admin"?"Super Admin":"Data Entry Staff");
+  await dialog.getByRole("button",{name:"Create user",exact:true}).click();await expect(dialog).toHaveCount(0);
+  await expect(page.locator("tbody")).toContainText("Direct User");expect(creates).toBe(1);
+  await page.getByRole("button",{name:"Edit Direct User",exact:true}).click();await expect(page.getByLabel(/^Password/)).toHaveCount(0);
+  await page.getByLabel("User name",{exact:false}).fill("Edited User");await page.getByRole("button",{name:"Save changes",exact:true}).click();
+  await expect(page.locator("tbody")).toContainText("Edited User");expect(updates).toBe(1);
+});
+
+test("duplicate direct-account errors preserve the form and never claim an invitation was sent",async({page})=>{
+  await service(page);await page.route("https://fixture.supabase.co/functions/v1/manage-staff",route=>route.fulfill({status:409,contentType:"application/json",body:JSON.stringify({error:"This email already has an account. Use the existing user profile."})}));
+  await login(page);await page.locator('nav a[href="/staff"]').click();await page.getByRole("button",{name:"Create user",exact:true}).click();
+  await page.getByLabel("User name",{exact:false}).fill("Duplicate User");await page.getByLabel("Email address",{exact:false}).fill("duplicate@test.invalid");
+  await page.getByLabel(/^Password/).fill("Example@JPfaral");await page.getByLabel("Confirm password",{exact:false}).fill("Example@JPfaral");
+  await page.getByRole("dialog").getByRole("button",{name:"Create user",exact:true}).click();await expect(page.getByRole("dialog").getByRole("alert")).toContainText("already has an account");
+  await expect(page.getByRole("dialog")).not.toContainText("invitation");
 });
 
 test("missing configuration blocks the workspace without fictional records", async ({

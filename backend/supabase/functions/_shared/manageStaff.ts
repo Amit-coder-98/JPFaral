@@ -53,41 +53,48 @@ export function createManageStaffHandler(deps: Dependencies) {
         return respond(400, {
           error: "Valid name, email, and account status are required.",
         });
-      if (body.operation === "invite") {
-        if (body.role !== "staff" || !body.active)
+      if (body.operation === "create") {
+        if (!["staff","super_admin"].includes(body.role) || !body.active)
           return respond(400, {
-            error: "New invitations must create active staff accounts.",
+            error: "Choose Admin or Data Entry Staff for an active new account.",
           });
+        if(typeof body.password!=="string" || body.password.length<12)
+          return respond(400,{error:"Password must contain at least 12 characters."});
+        if(new TextEncoder().encode(body.password).length>72)
+          return respond(400,{error:"Password must be no more than 72 bytes."});
+        if(typeof body.confirmPassword!=="string" || body.password!==body.confirmPassword)
+          return respond(400,{error:"Passwords do not match."});
         const admin = deps.adminClient();
-        const { data: invitation, error } =
-          await admin.auth.admin.inviteUserByEmail(body.email.trim(), {
-            data: { full_name: body.name.trim() },
-            redirectTo: deps.appOrigin + "/auth/setup",
+        const { data: creation, error } =
+          await admin.auth.admin.createUser({
+            email:body.email.trim().toLowerCase(),password:body.password,email_confirm:true,
+            user_metadata: { full_name: body.name.trim() },
           });
-        if (error || !invitation.user)
-          return respond(400, {
-            error:
-              "Invitation could not be created. Check whether the email is already registered and whether email delivery is configured.",
-          });
+        if (error || !creation.user) {
+          if(error && ["email_exists","user_already_exists"].includes(error.code??""))
+            return respond(409,{error:"This email already has an account. Use the existing user profile."});
+          return respond(400,{error:error?.code==="weak_password" ? "This password does not meet the project's password rules." : "The account could not be created. Check the email and password and try again."});
+        }
         const { error: provisionError } = await userClient.rpc(
           "admin_update_profile",
           {
-            p_id: invitation.user.id,
+            p_id: creation.user.id,
             p_name: body.name,
-            p_role: "staff",
+            p_role: body.role,
             p_active: true,
           },
         );
         if (provisionError) {
           // Auth + PostgreSQL are separate transactions. Fail closed and compensate.
-          await admin.auth.admin.deleteUser(invitation.user.id);
+          const cleanup=await admin.auth.admin.deleteUser(creation.user.id);
           return respond(409, {
-            error:
-              "The invitation could not be provisioned. The account remains disabled or was removed. Retry after checking administrator access.",
+            error: cleanup.error ? "The account could not be activated and cleanup did not finish. Review the existing account before retrying."
+              : "The account could not be activated and was removed. Check administrator access and try again.",
           });
         }
-        return respond(201, { id: invitation.user.id, invited: true });
+        return respond(201, { id: creation.user.id, created: true });
       }
+      if(body.operation==="invite") return respond(400,{error:"Invitations have been replaced. Refresh the app and use Create user with a password."});
       if (body.operation === "update") {
         if (
           typeof body.id !== "string" ||

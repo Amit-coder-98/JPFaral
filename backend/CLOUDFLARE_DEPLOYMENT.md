@@ -95,15 +95,15 @@ Keep the existing JWT verification and handler authorization enabled. Changing t
 
 See [Auth redirect configuration](https://supabase.com/docs/guides/auth/redirect-urls), [Edge secrets](https://supabase.com/docs/guides/functions/secrets), and [function deployment](https://supabase.com/docs/guides/functions/deploy).
 
-## 6. Enable invitations and password recovery
+## 6. Direct user creation and password recovery
 
-Configure **Authentication → SMTP Settings** with a working email provider before sending invitations/recovery emails to staff. Supabase's default SMTP restricts recipients to project-team addresses and is not intended for production staff delivery. Existing accounts with completed passwords can log in without a new invitation; accounts whose setup is incomplete need a fresh setup/recovery link for the deployed address. The old private local setup links point to `127.0.0.1` and cannot be used from staff devices.
+The administrator creates accounts directly through **Staff Management → Create user**, entering the name, email, password, confirmation and user type. Deploy the matching `manage-staff` function for this flow. It needs no invitation email, and users can sign in immediately. Password recovery and secure email changes still need **Authentication → SMTP Settings** with a working provider. The old private local setup links are historical and must not be used for new accounts.
 
 See [Supabase SMTP configuration](https://supabase.com/docs/guides/auth/auth-smtp). Enter email-provider credentials in Supabase directly; keep passwords and privileged keys out of chat and the frontend.
 
 ## 7. Verify the live deployment
 
-Sign in as the administrator, check the existing students/products/orders, open an order bill, and directly reload `/students`, `/orders`, and `/auth/setup`. Verify a staff account can access order entry but cannot access administrator screens. Check invitation/recovery delivery and the complete password-setup/login flow using a fresh link to the deployed hostname. Check bills, exports and responsive layouts on a phone. Test financial writes with explicitly identified test entries and review their cleanup afterward.
+Sign in as the administrator, check the existing students/products/orders, open an order bill, and directly reload `/students`, `/orders`, and `/auth/setup`. Verify a staff account can access order entry but cannot access administrator screens or create accounts. Check direct user creation for both supported roles and password confirmation. Verify recovery separately using a fresh link to the deployed hostname. Check bills, exports and responsive layouts on a phone. Test financial writes with explicitly identified test entries and review their cleanup afterward.
 
 For the existing project, check migration history rather than resetting/recreating data:
 

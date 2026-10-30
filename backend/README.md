@@ -16,10 +16,10 @@ The backend is PostgreSQL migrations, protected database functions, RLS policies
 - `supabase/migrations/202610140002_collected_order_deletion.sql`: explicit Super Admin confirmation for collected test/mistaken orders, with audited override and unchanged payment/history protection.
 - `supabase/migrations/202610140003_test_order_cleanup.sql`: explicitly confirmed Super Admin cleanup of paid/collected test entries, retained immutable ledger, and audited test classification.
 - `supabase/functions/manage-staff/index.ts`: Edge entry point and server environment configuration.
-- `supabase/functions/_shared/manageStaff.ts`: verified caller authorization, staff invitation, profile provisioning/compensation, and protected account updates.
+- `supabase/functions/_shared/manageStaff.ts`: verified caller authorization, direct password-based account creation, profile provisioning/compensation, and protected account updates.
 - `supabase/config.toml`: local services, disabled registration, password rules, and JWT verification for the function.
 - `tests/database.test.mjs`: actual migrations on a disposable native PostgreSQL 17 cluster with an Auth identity test shim.
-- `tests/staff-security.test.mjs`: server handler authorization and invitation compensation contract tests.
+- `tests/staff-security.test.mjs`: server authorization, both creation roles, credential validation, duplicate protection and provisioning compensation tests.
 
 ## Review and enable order deletion
 
@@ -104,7 +104,7 @@ In Authentication settings:
 2. Set Site URL to `http://127.0.0.1:5173` for initial development, then the production HTTPS origin.
 3. Allow the exact `/auth/setup` URL for invitations and password recovery on each intended origin. Avoid broad wildcard redirects in production.
 4. Enable email confirmation and secure email changes, require at least twelve-character passwords, and enable secure password change.
-5. Configure custom SMTP and a verified sending domain. The built-in SMTP service is intended for testing and restricts recipients; real staff invitations require appropriate delivery configuration. Disable provider link rewriting/tracking for one-use Auth links.
+5. Configure custom SMTP and a verified sending domain for password recovery and email changes. Direct administrator-created accounts do not require invitation delivery. Disable provider link rewriting/tracking for one-use Auth links.
 
 Reference: [Auth settings](https://supabase.com/docs/guides/auth/general-configuration), [SMTP setup](https://supabase.com/docs/guides/auth/auth-smtp), [redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls). Local `config.toml` does not automatically update all hosted dashboard Auth settings.
 
@@ -161,13 +161,20 @@ npm run supabase -- secrets set --env-file supabase/functions/.env.local
 npm run supabase -- functions deploy manage-staff
 ```
 
-Keep `verify_jwt = true`. The handler also calls Auth `getUser` to verify the bearer token and reads the caller's current active `super_admin` profile before creating a privileged client. New invitations always create staff. Authorized administrators may change an existing staff member's role; they cannot deactivate or demote their own administrator account.
+Keep `verify_jwt = true`. The handler also calls Auth `getUser` to verify the bearer token and reads the caller's current active `super_admin` profile before creating a privileged client. A verified administrator can directly create an active **Data Entry Staff** or **Admin** account. They cannot deactivate or demote their own administrator account through profile updates.
 
-From the Staff page, invite a real test staff address. The invitation redirects to `/auth/setup`, where the recipient sets a twelve-character password, signs out, and logs in. Email changes use the user's own confirmed Auth flow. A failed profile-provisioning step attempts to remove the newly invited Auth user; if cleanup fails, its profile remains inactive. Check failed invitations in the dashboard before retrying. Auth email delivery and database provisioning are separate operations, so an already sent email cannot be recalled.
+From **Staff Management → Create user**, enter User name, Email address, Password, Confirm password and User type, then create the account. The email is the login username. The backend independently checks password length (at least 12 characters, at most 72 UTF-8 bytes), matching confirmation and the allowed role. Auth creates an email-confirmed identity; the caller's checked `admin_update_profile` RPC assigns its role and activation with database-generated audit. No password enters the profile table or the audit payload. Duplicate emails cannot reset an existing account. A failed provisioning operation attempts to remove only the newly created Auth identity; cleanup failures are reported for review. No invitation email is sent, and the old invitation operation is retired. Email changes and recovery retain their existing secure flows.
 
-For the current local test, the two supplied accounts were provisioned through owner-authorized Auth administration with generated invitation links, followed by verified `staff` profile activation. No email was sent and no password was assigned. Their private setup page is `supabase/.temp/staff-local-setup.html`; open it on this computer with the frontend running at `http://127.0.0.1:5173`. Sign out of the administrator account before using a named link. The hosted Auth redirect in each generated link was verified as `http://127.0.0.1:5173/auth/setup`. This does not establish SMTP delivery, password completion or production deployment. Keep the temporary links private and remove them after account setup. Normal user invitations continue through the authenticated `manage-staff` function; no browser grants or RLS policies were changed for this owner setup.
+Historical local setup used two private invitation links. That workflow is superseded by direct account creation; do not use expired local setup links for new users. For the live application, set the origin explicitly rather than uploading the localhost development environment:
 
-Reference: [function deployment](https://supabase.com/docs/guides/functions/deploy), [Auth headers](https://supabase.com/docs/guides/functions/auth-headers), [Admin invitations](https://supabase.com/docs/reference/javascript/auth-admin-inviteuserbyemail).
+```powershell
+npm run supabase -- secrets set APP_ORIGIN=https://jpfaral.prabodhanwe.in --project-ref sbytydizvarzrfsurgeo
+npm run supabase -- functions deploy manage-staff --project-ref sbytydizvarzrfsurgeo --use-api
+```
+
+The production-origin correction was verified on 30 October 2026: the live origin's preflight returns 204, localhost is rejected, and an authenticated staff member receives 403 for account management. The nine owner-requested staff logins were verified separately. Credentials remain in ignored, access-restricted local files and are never part of the deployment. No browser grants, RLS policies or database migrations are changed by this account-creation update.
+
+Reference: [function deployment](https://supabase.com/docs/guides/functions/deploy), [Auth headers](https://supabase.com/docs/guides/functions/auth-headers), [Admin account creation](https://supabase.com/docs/reference/javascript/auth-admin-createuser).
 
 ## Database behavior and permissions
 

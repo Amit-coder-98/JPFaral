@@ -15,6 +15,14 @@ export interface StaffUser {
   active: boolean;
   lastActivity: string;
 }
+/** Used only while creating an account; never retained in workspace snapshots. */
+export interface CreateUserInput {
+  name:string;
+  email:string;
+  role:Role;
+  password:string;
+  confirmPassword:string;
+}
 export interface Product {
   id: string;
   name: string;
