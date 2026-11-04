@@ -27,7 +27,7 @@ test("the full order list and selected day show every matching receipt, with opt
   await page.getByLabel("Orders on day").fill("2026-10-01");
   await expect(page.locator("main tbody tr")).toHaveCount(8);
   await page.setViewportSize({width:390,height:844});
-  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await page.getByRole("button",{name:"All dates",exact:true}).click();
   await expect(page.locator("main tbody tr")).toHaveCount(86);
 });
@@ -63,6 +63,6 @@ test("daily cash and online totals reconcile and a day opens the complete transa
   await page.getByRole("button",{name:"All dates",exact:true}).click();
   await expect(page.locator("main tbody tr")).toHaveCount(seedData().payments.length);
   await page.setViewportSize({width:390,height:844});
-  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await page.screenshot({path:"test-results/daily-payment-transactions-phone.png",fullPage:true});
 });

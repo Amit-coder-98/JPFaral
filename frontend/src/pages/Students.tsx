@@ -18,6 +18,7 @@ import {
   SearchInput,
 } from "../components/ui";
 import { OrderTable } from "../components/orders/OrderTable";
+import { studentOrdersPath } from "../utils/orderNavigation";
 import { divisions } from "../data/reference";
 import { otherStandards } from "../utils/otherStudents";
 import {
@@ -319,14 +320,16 @@ export default function Students() {
           </div>
         </div>
         <OrderTable
+          returnTo={studentOrdersPath(selected?.id)}
           orders={
             selected
-              ? data.orders.filter((o) => o.studentId === selected.id)
+              ? data.orders.filter((o) => !o.deletedAt && o.studentId === selected.id)
               : []
           }
           compact
         />
         <div className="modal-actions">
+          <Link className="button secondary" to={studentOrdersPath(selected?.id)}>View student orders</Link>
           <Link
             className="button primary"
             to={`/orders/new?student=${selected?.id}`}

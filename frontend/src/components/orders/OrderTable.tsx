@@ -14,6 +14,7 @@ export function OrderTable({
   onSelect,
   onDelete,
   pageSize = 8,
+  returnTo,
 }: {
   orders: Order[];
   compact?: boolean;
@@ -21,6 +22,7 @@ export function OrderTable({
   onSelect?: (selected: Set<string>) => void;
   onDelete?: (order: Order) => void;
   pageSize?: number | "all";
+  returnTo?: string;
 }) {
   const { data } = useApp();
   const serials = activeOrderSerials(orders);
@@ -36,7 +38,7 @@ export function OrderTable({
       label: "Receipt no.",
       value: (o) => o.number,
       render: (o) => (
-        <Link className="order-link" to={`/orders/${o.id}`}>
+        <Link className="order-link" to={`/orders/${o.id}`} state={returnTo ? { returnTo } : undefined}>
           {o.number}
         </Link>
       ),
@@ -139,6 +141,7 @@ export function OrderTable({
             <Link
               className="icon-button"
               to={`/orders/${o.id}/edit`}
+              state={returnTo ? { returnTo } : undefined}
               aria-label={`Edit ${o.number}`}
             >
               <Pencil size={15} />
@@ -147,6 +150,7 @@ export function OrderTable({
           <Link
             className="icon-button"
             to={`/orders/${o.id}`}
+            state={returnTo ? { returnTo } : undefined}
             aria-label={`View ${o.number}`}
           >
             <ArrowUpRight size={17} />

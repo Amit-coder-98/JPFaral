@@ -7,6 +7,7 @@ import {
   SlidersHorizontal,
   X,
   FileSpreadsheet,
+  ArrowLeft,
   Trash2,
 } from "lucide-react";
 import { useApp } from "../app/Provider";
@@ -36,17 +37,29 @@ export default function Orders() {
   const [deleting, setDeleting] = useState<Order[] | null>(null);
   const [exporting, setExporting] = useState(false);
   const [params] = useSearchParams();
+  const studentId = params.get("student") ?? "";
+  const student = data.students.find(student => student.id === studentId)
+    ?? data.orders.find(order => order.studentId === studentId)?.studentSnapshot;
   const [search, setSearch] = useState(params.get("search") ?? "");
   const [status, setStatus] = useState(params.get("status") === "Ready" ? "Confirmed" : params.get("status") ?? "");
-  const [filters, setFilters] = useState(false);
-  const [standard, setStandard] = useState("");
-  const [division, setDivision] = useState("");
+  const [filters, setFilters] = useState(!!(params.get("standard") || params.get("division") || params.get("staff") || params.get("method")));
+  const [standard, setStandard] = useState(params.get("standard") ?? "");
+  const [division, setDivision] = useState(params.get("division") ?? "");
   const [staff, setStaff] = useState(params.get("staff") ?? "");
-  const [method, setMethod] = useState("");
+  const [method, setMethod] = useState(params.get("method") ?? "");
   const [source, setSource] = useState(params.get("source") ?? "");
   const [from, setFrom] = useState(params.get("from") ?? "");
   const [to, setTo] = useState(params.get("to") ?? "");
-  const [pageSize, setPageSize] = useState<number | "all">("all");
+  const [pageSize, setPageSize] = useState<number | "all">(() => {
+    const size = Number(params.get("pageSize"));
+    return [8, 25, 50].includes(size) ? size : "all";
+  });
+  const listParams = new URLSearchParams();
+  Object.entries({ student: studentId, search, status, standard, division, staff, method, source, from, to,
+    pageSize: pageSize === "all" ? "" : String(pageSize) }).forEach(([key, value]) => {
+      if (value) listParams.set(key, value);
+    });
+  const returnTo = `/orders${listParams.size ? `?${listParams}` : ""}`;
   const rows = useMemo(
     () =>
       data.orders.filter((o) => {
@@ -58,6 +71,7 @@ export default function Orders() {
             .toLowerCase()
             .includes(search.toLowerCase()) &&
           (!status || orderStatusLabel(o.status) === status) &&
+          (!studentId || o.studentId === studentId) &&
           (!standard || s?.standard === standard) &&
           (!division || s?.division === division) &&
           (!staff || o.createdBy === staff) &&
@@ -67,7 +81,7 @@ export default function Orders() {
           (!to || dayKey(o.createdAt) <= to)
         );
       }),
-    [data, search, status, standard, division, staff, method, source, from, to],
+    [data, studentId, search, status, standard, division, staff, method, source, from, to],
   );
   const clear = () => {
     setSearch("");
@@ -160,10 +174,11 @@ export default function Orders() {
     <>
       <PageHeader
         eyebrow="ORDER DESK"
-        title="All orders"
-        description="Every sweet celebration, carefully recorded."
+        title={studentId ? `${student?.name ?? "Student"} · orders` : "All orders"}
+        description={studentId ? [student?.standard, student?.division, "Select an order to record payment or collection."].filter(Boolean).join(" · ") : "Every sweet celebration, carefully recorded."}
         actions={
           <>
+            {studentId && <Link to="/orders" className="button secondary"><ArrowLeft size={16} />All orders</Link>}
             <Button variant="secondary" onClick={exportCSV}>
               <Download size={16} />
               Export CSV
@@ -176,7 +191,7 @@ export default function Orders() {
               <FileSpreadsheet size={16} />
               Export Excel
             </Button>
-            <Link to="/orders/new" className="button primary">
+            <Link to={studentId ? `/orders/new?${new URLSearchParams({ student: studentId })}` : "/orders/new"} state={{ returnTo }} className="button primary">
               <Plus size={17} />
               Create order
             </Link>
@@ -184,6 +199,10 @@ export default function Orders() {
         }
       />
       <div className="summary-pills">
+        {studentId && <>
+          <span>Awaiting collection <strong>{rows.filter(order => orderStatusLabel(order.status) === "Confirmed").length}</strong></span>
+          <span>Collected <strong>{rows.filter(order => order.status === "Collected").length}</strong></span>
+        </>}
         <span>
           <strong>{rows.length}</strong> {rows.length === 1 ? "active order" : "active orders"} in this view
         </span>
@@ -339,7 +358,7 @@ export default function Orders() {
             }}><Trash2 size={15} />Delete selected</Button>
           </div>
         </div>}
-        <OrderTable orders={rows} pageSize={pageSize} selected={admin ? selected : undefined} onSelect={admin ? select : undefined}
+        <OrderTable orders={rows} pageSize={pageSize} returnTo={returnTo} selected={admin ? selected : undefined} onSelect={admin ? select : undefined}
           onDelete={admin ? (order) => setDeleting([order]) : undefined} />
       </Panel>
       {deleting && <DeleteOrdersDialog orders={deleting} onClose={() => setDeleting(null)}

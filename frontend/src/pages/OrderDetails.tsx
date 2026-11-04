@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   Pencil,
@@ -14,19 +14,22 @@ import { paymentAmount } from "../utils/calculations";
 import { CollectionDialog } from "../components/orders/CollectionDialog";
 import { PaymentDialog } from "../components/orders/PaymentDialog";
 import { orderSourceLabel } from "../utils/orderSource";
+import { orderListReturnPath } from "../utils/orderNavigation";
 export default function OrderDetails() {
   const { id } = useParams();
+  const location = useLocation();
   const { data, user, isMock } = useApp();
   const [collect, setCollect] = useState(false);
   const [payment, setPayment] = useState(false);
   const order = [...data.orders, ...(user?.role === "Super Admin" ? data.deletedOrders ?? [] : [])].find((o) => o.id === id);
+  const returnTo = orderListReturnPath(order, location.state, data.orders);
   if (!order)
     return (
       <Empty
         title="Order not found"
         description="This order is unavailable or you no longer have access."
         action={
-          <Link to="/orders" className="button secondary">
+          <Link to={returnTo} className="button secondary">
             Back to orders
           </Link>
         }
@@ -43,7 +46,7 @@ export default function OrderDetails() {
         description={`Receipt for ${order.customerName || "your customer"}.`}
         actions={
           <>
-            <Link to="/orders" className="button secondary">
+            <Link to={returnTo} className="button secondary" title={returnTo.includes("student=") ? "Back to this student's orders" : "Back to orders"}>
               <ArrowLeft size={16} />
               Orders
             </Link>
@@ -52,7 +55,7 @@ export default function OrderDetails() {
               Print bill
             </Button>
             {!order.deletedAt && order.status !== "Collected" && (
-              <Link to={`/orders/${order.id}/edit`} className="button secondary">
+              <Link to={`/orders/${order.id}/edit`} state={{ returnTo }} className="button secondary">
                 <Pencil size={16} />
                 Edit order
               </Link>
@@ -98,7 +101,7 @@ export default function OrderDetails() {
             </div>
           </dl>
           {!order.deletedAt && order.status === "Draft" && (
-            <Link className="button primary" to={`/orders/${order.id}/edit`}>
+            <Link className="button primary" to={`/orders/${order.id}/edit`} state={{ returnTo }}>
               Continue draft
             </Link>
           )}

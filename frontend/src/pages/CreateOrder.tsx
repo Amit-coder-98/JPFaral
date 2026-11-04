@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   Link,
+  useLocation,
   useNavigate,
   useParams,
   useSearchParams,
@@ -30,6 +31,7 @@ import { PaymentDialog } from "../components/orders/PaymentDialog";
 import { OtherStudentForm } from "../components/orders/OtherStudentForm";
 import { isOtherStandard } from "../utils/otherStudents";
 import { isStallOrder } from "../utils/orderSource";
+import { orderListReturnPath, studentOrdersPath } from "../utils/orderNavigation";
 import { divisions } from "../data/reference";
 import { orderSchema, quantitySchema } from "../services/validation";
 import { rateMoney } from "../utils/pricing";
@@ -86,6 +88,7 @@ export default function CreateOrder() {
   const { data, user, repository, toast, isMock } = useApp();
   const [requestId, setRequestId] = useState(() => crypto.randomUUID());
   const navigate = useNavigate();
+  const location = useLocation();
   const original = data.orders.find((o) => o.id === id);
   const selectedInitial = data.students.find(
     (s) => s.id === (original?.studentId ?? params.get("student")),
@@ -124,8 +127,10 @@ export default function CreateOrder() {
   const hasOrderChanges = !!original && (["studentId", "customerName", "customerPhone", "items", "collectionDate", "collectorType", "collectorName"] as const)
     .some(key => JSON.stringify(form[key]) !== JSON.stringify(original[key]));
   const student = data.students.find((s) => s.id === form.studentId);
+  const returnTo = orderListReturnPath(original ?? { studentId: form.studentId },
+    location.state ?? (!id && !params.get("student") ? { returnTo: "/orders" } : undefined), data.orders);
   const historyOrders = data.orders.filter(
-    (o) => o.studentId === form.studentId,
+    (o) => !o.deletedAt && !!form.studentId && o.studentId === form.studentId,
   );
   const studentOptions = data.students
     .filter(
@@ -277,7 +282,7 @@ export default function CreateOrder() {
           title="Order not found"
           description="This order is no longer available in your workspace."
         />
-        <Link to="/orders" className="button secondary">
+        <Link to={returnTo} className="button secondary">
           Back to orders
         </Link>
       </div>
@@ -291,7 +296,7 @@ export default function CreateOrder() {
         }
         description="From the order book to your workspace. Let’s get every detail right."
         actions={
-          <Link to="/orders" className="button secondary">
+          <Link to={returnTo} className="button secondary">
             <ArrowLeft size={16} />
             Back to orders
           </Link>
@@ -787,7 +792,8 @@ export default function CreateOrder() {
         title={`${student?.name ?? "Student"} · order history`}
         description={`${historyOrders.length} previous orders in this workspace.`}
       >
-        <OrderTable orders={historyOrders} compact />
+        <OrderTable orders={historyOrders} compact returnTo={studentOrdersPath(student?.id)} />
+        <div className="modal-actions"><Link className="button secondary" to={studentOrdersPath(student?.id)}>View student orders</Link></div>
       </Modal>
       <Modal
         open={customerModal}
@@ -865,7 +871,7 @@ export default function CreateOrder() {
           <Button variant="secondary" onClick={() => setCancel(false)}>
             Keep editing
           </Button>
-          <Button variant="danger" onClick={() => navigate("/orders")}>
+          <Button variant="danger" onClick={() => navigate(returnTo)}>
             Discard changes
           </Button>
         </div>
@@ -894,11 +900,11 @@ export default function CreateOrder() {
         </div>
       </Modal>
       {payment && original && <PaymentDialog orderId={original.id} onClose={() => setPayment(false)}
-        onSaved={() => navigate(`/orders/${original.id}`)} />}
+        onSaved={() => navigate(`/orders/${original.id}`, { state: { returnTo } })} />}
       <Modal
         open={!!saved}
         onClose={() => {
-          if (saved) navigate(`/orders/${saved.id}`);
+          if (saved) navigate(`/orders/${saved.id}`, { state: { returnTo } });
         }}
         title={
           saved?.status === "Draft"
@@ -940,7 +946,7 @@ export default function CreateOrder() {
           >
             Create another
           </Button>
-          <Button onClick={() => navigate(`/orders/${saved!.id}`)}>
+          <Button onClick={() => navigate(`/orders/${saved!.id}`, { state: { returnTo } })}>
             View {saved?.status === "Draft" ? "draft" : "order"}
             <ArrowRight size={16} />
           </Button>
