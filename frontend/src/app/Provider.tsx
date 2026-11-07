@@ -15,6 +15,8 @@ import { supabase } from "../services/supabase";
 import { configuration, isMock } from "../services/config";
 import { SessionAccessError } from "../services/supabaseRepository";
 import type { Role } from "../types";
+import { signInError } from "../services/backendErrors";
+import { AUTO_CHECK_INTERVAL } from "../utils/workspaceRefresh";
 interface Session {
   userId: string | null;
   setUserId: (id: string | null) => void;
@@ -76,11 +78,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSessionLoading(false);
   }, []);
   const loadIdentity = useCallback(
-    async (id: string, blocking = true) => {
+    async (id: string, blocking = true, automatic = false) => {
       const ticket = ++generation.current;
       if (blocking) setSessionLoading(true);
       try {
-        await repository.refresh();
+        if (automatic && repository.refreshIfChanged) {
+          if (!await repository.refreshIfChanged()) return;
+        } else await repository.refresh();
         if (ticket !== generation.current) return;
         const verifiedId = repository.getIdentity?.() ?? id;
         if (
@@ -127,6 +131,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return;
       }
       if (event === "SIGNED_IN" && signInPending.current) return;
+      if (event === "SIGNED_IN" && currentId.current === session.user.id) return;
       if (event === "TOKEN_REFRESHED" && currentId.current === session.user.id)
         return;
       const scheduledGeneration = generation.current;
@@ -151,17 +156,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (isMock || !userId) return;
     const onFocus = () => {
-      void refresh().catch(() => {});
+      if (document.visibilityState === "visible" && currentId.current)
+        void loadIdentity(currentId.current, false, true).catch(() => {});
     };
     const timer = setInterval(() => {
       if (document.visibilityState === "visible") onFocus();
-    }, 30000);
+    }, AUTO_CHECK_INTERVAL);
     window.addEventListener("focus", onFocus);
     return () => {
       clearInterval(timer);
       window.removeEventListener("focus", onFocus);
     };
-  }, [userId, refresh]);
+  }, [userId, loadIdentity]);
   const signIn = async (email: string, password: string) => {
     setSessionError("");
     if (isMock) {
@@ -182,10 +188,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         email,
         password,
       });
-      if (error || !auth.user)
-        throw new Error(
-          "Unable to sign in. Check your credentials and try again.",
-        );
+      if (error || !auth.user) throw signInError(error);
       await loadIdentity(auth.user.id);
     } finally {
       signInPending.current = false;

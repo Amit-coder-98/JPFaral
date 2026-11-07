@@ -20,6 +20,7 @@ export interface FrontendRepository {
   getIdentity?(): string | null;
   subscribe(listener: () => void): () => void;
   refresh(): Promise<void>;
+  refreshIfChanged?(): Promise<boolean>;
   reset(): void;
   saveOrder(
     input: OrderInput,

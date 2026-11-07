@@ -17,6 +17,8 @@ import type {
   AuditLog,
 } from "../types";
 import { validateCreateUser } from "../utils/userAccounts";
+import { BackendRestrictionError, backendError } from "./backendErrors";
+import { AUTO_CHECK_INTERVAL, QUOTA_RETRY_INTERVAL, changeColumns, changeSignature, type ChangeTable } from "../utils/workspaceRefresh";
 
 export const emptyState = (): AppState => ({
   students: [],
@@ -82,6 +84,9 @@ export class SupabaseRepository implements FrontendRepository {
   private generation = 0;
   private identity: string | null = null;
   private refreshQueue: Promise<void> = Promise.resolve();
+  private automaticRefresh: Promise<boolean> | null = null;
+  private nextAutomaticCheck = 0;
+  private signatures = new Map<ChangeTable, string>();
   constructor(private client: SupabaseClient | null) {}
   getSnapshot = () => this.state;
   getIdentity = () => this.identity;
@@ -98,6 +103,8 @@ export class SupabaseRepository implements FrontendRepository {
   reset = () => {
     this.generation++;
     this.identity = null;
+    this.signatures.clear();
+    this.nextAutomaticCheck = 0;
     this.commit(emptyState());
   };
   private api() {
@@ -114,7 +121,7 @@ export class SupabaseRepository implements FrontendRepository {
         .select(columns, { count: "exact" })
         .order("id")
         .range(offset, offset + 499);
-      if (error) throw new Error(error.message);
+      if (error) throw backendError(error, error.message);
       result.push(...(data as unknown as Row[]));
       offset += data.length;
       if (count !== null ? offset >= count : data.length < 500) break;
@@ -127,38 +134,55 @@ export class SupabaseRepository implements FrontendRepository {
     this.refreshQueue = next;
     return next;
   }
+  refreshIfChanged() {
+    if (this.automaticRefresh) return this.automaticRefresh;
+    const generation = this.generation;
+    const next = this.refreshQueue.catch(() => {}).then(async () => {
+      if (generation !== this.generation || Date.now() < this.nextAutomaticCheck) return false;
+      this.nextAutomaticCheck = Date.now() + AUTO_CHECK_INTERVAL;
+      try {
+        const { identity, own } = await this.verifyIdentity();
+        if (identity.id !== this.identity) throw new SessionAccessError("Your account changed. Please sign in again.");
+        const previous = this.state.staff.find(profile => profile.id === identity.id);
+        if (previous && previous.role !== (own.role === "super_admin" ? "Super Admin" : "Data Entry Staff"))
+          throw new SessionAccessError("Your account permissions changed. Please sign in again.");
+        const changes = await Promise.all((Object.keys(changeColumns) as ChangeTable[]).map(async table => {
+          const column = changeColumns[table];
+          const { data, error, count } = await this.api().from(table).select(`id,${column}`, { count: "exact" })
+            .order(column, { ascending: false }).order("id", { ascending: false }).limit(1);
+          if (error) throw backendError(error, error.message);
+          if (count === null) throw new Error("Unable to check for updated records. Use Refresh records to reload the workspace.");
+          return changeSignature(data as Row[], column, count) !== this.signatures.get(table);
+        }));
+        if (generation !== this.generation) return false;
+        if (changes.some(Boolean)) await this.load();
+        return this.identity === identity.id;
+      } catch (error) {
+        if (error instanceof BackendRestrictionError) this.nextAutomaticCheck = Date.now() + QUOTA_RETRY_INTERVAL;
+        throw error;
+      }
+    });
+    this.refreshQueue = next.then(() => {}, () => {});
+    this.automaticRefresh = next;
+    void next.finally(() => { if (this.automaticRefresh === next) this.automaticRefresh = null; }).catch(() => {});
+    return next;
+  }
+  private async verifyIdentity() {
+    const { data: identity, error: authError } = await this.api().auth.getUser();
+    if (authError) {
+      if (authError.status === 401 || authError.status === 403 || authError.name === "AuthSessionMissingError")
+        throw new SessionAccessError("Your session expired. Please sign in again.");
+      throw backendError(authError, "Unable to verify your session. Check your connection and retry.");
+    }
+    if (!identity.user) throw new SessionAccessError("Your session expired. Please sign in again.");
+    const { data: own, error } = await this.api().from("profiles").select("*").eq("id", identity.user.id).single();
+    if (error) throw backendError(error, `Unable to load your profile: ${error.message}`);
+    if (!own?.active) throw new SessionAccessError("This account is inactive or has not been provisioned. Contact your administrator.");
+    return { identity: identity.user, own };
+  }
   private async load() {
     const generation = ++this.generation;
-    const { data: identity, error: authError } =
-      await this.api().auth.getUser();
-    if (authError) {
-      if (
-        authError.status === 401 ||
-        authError.status === 403 ||
-        authError.name === "AuthSessionMissingError"
-      )
-        throw new SessionAccessError(
-          "Your session expired. Please sign in again.",
-        );
-      throw new Error(
-        "Unable to verify your session. Check your connection and retry.",
-      );
-    }
-    if (!identity.user)
-      throw new SessionAccessError(
-        "Your session expired. Please sign in again.",
-      );
-    const { data: own, error: profileError } = await this.api()
-      .from("profiles")
-      .select("*")
-      .eq("id", identity.user.id)
-      .single();
-    if (profileError)
-      throw new Error(`Unable to load your profile: ${profileError.message}`);
-    if (!own?.active)
-      throw new SessionAccessError(
-        "This account is inactive or has not been provisioned. Contact your administrator.",
-      );
+    const { identity, own } = await this.verifyIdentity();
     const admin = own.role === "super_admin";
     const activity = async () => {
       if (admin) return this.rows("audit_logs");
@@ -168,7 +192,7 @@ export class SupabaseRepository implements FrontendRepository {
           p_offset: offset,
           p_limit: 500,
         });
-        if (error) throw new Error(error.message);
+        if (error) throw backendError(error, error.message);
         result.push(...data);
         if (data.length < 500) break;
       }
@@ -196,6 +220,10 @@ export class SupabaseRepository implements FrontendRepository {
       activity(),
     ]);
     if (generation !== this.generation) return;
+    const tables = { students, profiles, products, orders: headers, payments: receipts, organization_settings: organization };
+    for (const table of Object.keys(changeColumns) as ChangeTable[])
+      this.signatures.set(table, changeSignature(tables[table], changeColumns[table]));
+    this.nextAutomaticCheck = Date.now() + AUTO_CHECK_INTERVAL;
     const mappedPayments = receipts
       .map((p) => ({
         id: str(p.id),
@@ -270,7 +298,7 @@ export class SupabaseRepository implements FrontendRepository {
           };
         })
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    this.identity = identity.user.id;
+    this.identity = identity.id;
     this.commit({
       students: students.map((s) => ({
         id: str(s.id),

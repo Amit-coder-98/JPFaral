@@ -125,6 +125,10 @@ The dashboard shows operational totals, awaiting collections, school-wide class/
 
 `tests/e2e/scrolling.spec.ts` checks list pagination on laptops, tablets and phones, complete directory traversal, resizing, sorting, filters, empty results, all catalogue pages and navigation scroll reset.
 
+## Authentication availability and background updates
+
+Login reports Supabase quota restrictions and temporary service failures separately from invalid credentials. Automatic/focus refresh verifies active membership and checks compact counts/latest timestamps at most once per minute; unchanged workspaces no longer download all records every 30 seconds. A detected change, explicit Refresh records or successful save still reloads complete authoritative records. Background quota failures back off for five minutes. See the [7 November incident and provider recovery steps](../backend/AUTH_QUOTA_INCIDENT.md). No migration is required.
+
 ## Student collection navigation
 
 Open a receipt from a student's directory details or **previous orders** history. After recording payment or collecting the order, the receipt's **Orders** back arrow returns to that student's complete order list, identified by the saved student ID. The list shows awaiting and collected counts, and **All orders** switches back to the full directory. Repeated collections do not require selecting the class, division or student again. Existing list searches, class/division, status, source, dates, staff, payment-method filters and page size survive receipt/edit/payment navigation. Direct receipts use their student's active order history; Stall or an unavailable student history falls back to All orders. Deleted orders stay excluded. This is a frontend navigation update with no database migration or changes to receipts or payments.

@@ -7,7 +7,11 @@ const id = "a1111111-1111-4111-8111-111111111111";
 async function service(page: Page, role = "super_admin") {
   let active = true,
     invalid = false,
-    expired = false;
+    expired = false,
+    restricted = false,
+    unavailable = false;
+  const students: Record<string, unknown>[] = [];
+  const requests: string[] = [];
   const identity = {
     id,
     aud: "authenticated",
@@ -26,14 +30,17 @@ async function service(page: Page, role = "super_admin") {
   await page.route("https://fixture.supabase.co/**", async (route) => {
     const request = route.request(),
       url = new URL(request.url());
-    const send = (body: unknown, status = 200) =>
+    requests.push(url.pathname + url.search);
+    const send = (body: unknown, status = 200, headers: Record<string,string> = {}) =>
       route.fulfill({
         status,
         contentType: "application/json",
         body: JSON.stringify(body),
+        headers: { "Access-Control-Expose-Headers": "Content-Range", ...headers },
       });
+    if (restricted) return send({ message: "Service for this project is restricted due to the following violations: exceed_egress_quota." }, 402);
     if (url.pathname.endsWith("/token"))
-      return invalid
+      return unavailable ? send({message:"Service temporarily unavailable"},503) : invalid
         ? send(
             {
               error: "invalid_grant",
@@ -69,7 +76,7 @@ async function service(page: Page, role = "super_admin") {
                 updated_at: "2026-10-11T10:00:00Z",
               },
             ]
-          : table === "organization_settings"
+          : table === "students" ? students : table === "organization_settings"
             ? [
                 {
                   id: true,
@@ -79,9 +86,9 @@ async function service(page: Page, role = "super_admin") {
                 },
               ]
             : [];
-      return send(
-        request.headers().accept?.includes("object") ? rows[0] : rows,
-      );
+      const metadata = url.searchParams.get("limit") === "1";
+      return send(request.headers().accept?.includes("object") ? rows[0] : metadata ? rows.slice(-1) : rows,
+        200, { "Content-Range": rows.length ? `0-${metadata ? 0 : rows.length-1}/${rows.length}` : "*/0" });
     }
     return send({ error: "Unhandled simulated service request" }, 400);
   });
@@ -89,12 +96,19 @@ async function service(page: Page, role = "super_admin") {
     deactivate: () => {
       active = false;
     },
+    demote: () => { role = "staff"; },
     invalid: () => {
       invalid = true;
     },
     expire: () => {
       expired = true;
     },
+    restrict: () => { restricted = true; },
+    restore: () => { restricted = false; },
+    unavailable: () => { unavailable = true; },
+    requests: () => [...requests],
+    addStudent: () => { students.push({id:"b1111111-1111-4111-8111-111111111111",name:"Live junior student",phone:null,
+      standard:"2nd",division_id:null,other_division:"",updated_at:"2026-11-07T10:00:00Z"}); },
     setupLink: () =>
       `/auth/setup#access_token=${token}&refresh_token=test-refresh-token&expires_in=3600&token_type=bearer&type=recovery`,
   };
@@ -505,4 +519,92 @@ test("password recovery completes setup then requires a fresh login", async ({
     page.getByRole("button", { name: "Sign in to workspace", exact: true }),
   ).toBeVisible();
   await expect(page.locator(".app-shell")).toHaveCount(0);
+});
+
+test("a quota-restricted sign-in reports the billing outage rather than an incorrect password", async ({page}) => {
+  const mock = await service(page); mock.restrict();
+  await login(page);
+  await expect(page.getByRole("alert")).toContainText("data-transfer quota has been exceeded");
+  await expect(page.getByRole("alert")).toContainText("Supabase Billing");
+  await expect(page.getByText("Unable to sign in. Check your credentials and try again.")).toHaveCount(0);
+  await expect(page.locator(".app-shell")).toHaveCount(0);
+});
+
+test("a temporary authentication outage does not report invalid credentials", async ({page}) => {
+  const mock = await service(page); mock.unavailable();
+  await login(page);
+  await expect(page.getByRole("alert")).toContainText("sign-in service is temporarily unavailable");
+  await expect(page.locator(".app-shell")).toHaveCount(0);
+});
+
+test("background checks transfer only compact metadata until a student or order changes", async ({page}) => {
+  await page.clock.install();
+  const mock = await service(page); await login(page);
+  await expect(page.getByRole("heading",{name:"Dashboard",exact:true})).toBeVisible();
+  const fullReads = () => mock.requests().filter(url => url.includes("/rest/v1/") && !url.includes("id=eq.") && !url.includes("limit=1")).length;
+  const before = fullReads();
+  await page.clock.runFor(60_001);
+  await expect.poll(() => mock.requests().filter(url=>url.includes("limit=1")).length).toBe(6);
+  expect(fullReads()).toBe(before);
+  for (let i=0;i<5;i++) await page.evaluate(()=>window.dispatchEvent(new Event("focus")));
+  expect(mock.requests().filter(url=>url.includes("limit=1"))).toHaveLength(6);
+  await page.getByRole("link",{name:"Students",exact:true}).click();
+  await expect(page.getByRole("heading",{name:"Students",exact:true})).toBeVisible();
+  mock.addStudent();
+  await page.clock.runFor(60_001);
+  await expect(page.getByRole("button",{name:"View Live junior student",exact:true})).toBeVisible();
+  expect(fullReads()).toBeGreaterThan(before);
+});
+
+test("an automatic membership check still removes a deactivated user's business data", async ({page}) => {
+  await page.clock.install();
+  const mock = await service(page); await login(page);
+  await expect(page.getByRole("heading",{name:"Dashboard",exact:true})).toBeVisible();
+  mock.deactivate(); await page.clock.runFor(60_001);
+  await expect(page.getByRole("button",{name:"Sign in to workspace",exact:true})).toBeVisible();
+  await expect(page.locator("form")).toContainText("This account is inactive");
+  await expect(page.locator(".app-shell")).toHaveCount(0);
+});
+
+test("a role downgrade clears the previously privileged workspace on the background check", async ({page}) => {
+  await page.clock.install();
+  const mock = await service(page); await login(page);
+  await expect(page.getByRole("heading",{name:"Dashboard",exact:true})).toBeVisible();
+  mock.demote(); await page.clock.runFor(60_001);
+  await expect(page.getByRole("button",{name:"Sign in to workspace",exact:true})).toBeVisible();
+  await expect(page.locator("form")).toContainText("permissions changed");
+  await expect(page.locator(".app-shell")).toHaveCount(0);
+});
+
+test("hidden tabs do not poll the database and a visible focus performs a compact check", async ({page}) => {
+  await page.clock.install();
+  const mock = await service(page); await login(page);
+  await expect(page.getByRole("heading",{name:"Dashboard",exact:true})).toBeVisible();
+  await page.evaluate(()=>Object.defineProperty(document,"visibilityState",{get:()=>"hidden",configurable:true}));
+  const before = mock.requests().length;
+  await page.clock.runFor(120_000);
+  expect(mock.requests()).toHaveLength(before);
+  await page.evaluate(()=>{
+    Object.defineProperty(document,"visibilityState",{get:()=>"visible",configurable:true});
+    window.dispatchEvent(new Event("focus"));
+  });
+  await expect.poll(()=>mock.requests().filter(url=>url.includes("limit=1")).length).toBe(6);
+});
+
+test("quota errors back off background requests, retain a verified workspace and recover on manual refresh", async ({page}) => {
+  await page.clock.install();
+  const mock = await service(page); await login(page);
+  await expect(page.getByRole("heading",{name:"Dashboard",exact:true})).toBeVisible();
+  mock.restrict(); await page.clock.runFor(60_001);
+  await expect(page.locator('main [role="alert"]')).toContainText("data-transfer quota");
+  await expect(page.locator(".app-shell")).toBeVisible();
+  const afterFailure = mock.requests().length;
+  await page.clock.runFor(120_000);
+  expect(mock.requests()).toHaveLength(afterFailure);
+  await expect(page.locator('main [role="alert"]')).toContainText("data-transfer quota");
+  mock.restore();
+  await page.getByRole("button",{name:"Refresh records",exact:true}).click();
+  await expect(page.getByRole("heading",{name:"Dashboard",exact:true})).toBeVisible();
+  await expect(page.locator('main [role="alert"]')).toHaveCount(0);
+  await expect(page.getByRole("button",{name:"Refresh records",exact:true})).toBeEnabled();
 });

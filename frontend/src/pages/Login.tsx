@@ -178,7 +178,7 @@ export default function Login() {
                     password. No real authentication or persistent data.
                   </>
                 ) : (
-                  "Sign in with your staff account. Contact your Super Admin for an invitation or help with account access."
+                  "Sign in with your staff account. Contact your Super Admin for help with account access."
                 )}
               </p>
             </div>
